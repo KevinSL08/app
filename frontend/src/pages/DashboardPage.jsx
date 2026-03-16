@@ -3,8 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useAuth, API } from "../App";
 import axios from "axios";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { toast } from "sonner";
 import {
   Search,
@@ -18,7 +16,9 @@ import {
   Clock,
   Globe,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  ArrowRight,
+  Zap
 } from "lucide-react";
 import {
   Select,
@@ -56,7 +56,16 @@ export default function DashboardPage() {
     { code: "TH", name: "Tailandia" },
     { code: "TR", name: "Turquía" },
     { code: "GB", name: "Reino Unido" },
+    { code: "CL", name: "Chile" },
+    { code: "AR", name: "Argentina" },
     { code: "OTHER", name: "Otro país" }
+  ];
+
+  const examples = [
+    "Aceite de oliva virgen extra en botella",
+    "Camiseta de algodón 100%",
+    "Tornillos de acero inoxidable M8",
+    "Vino tinto Rioja reserva"
   ];
 
   useEffect(() => {
@@ -98,7 +107,7 @@ export default function DashboardPage() {
       );
       
       setSearchResult(response.data);
-      fetchHistory(); // Refresh history
+      fetchHistory();
       toast.success("Análisis completado");
     } catch (error) {
       const message = error.response?.data?.detail || "Error al realizar la búsqueda";
@@ -140,28 +149,38 @@ export default function DashboardPage() {
     navigate("/");
   };
 
+  const setExampleSearch = (example) => {
+    setSearchQuery(example);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#0a0f1a] grid-bg">
       {/* Header */}
-      <header className="glass fixed top-0 left-0 right-0 z-50">
+      <header className="glass-dark fixed top-0 left-0 right-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-maritime rounded-sm flex items-center justify-center">
-              <Container className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 bg-[#0d1424] border border-cyan-500/30 rounded-lg flex items-center justify-center">
+              <Container className="w-5 h-5 text-cyan-400" />
             </div>
-            <span className="font-heading font-bold text-xl text-maritime">TARIC AI</span>
+            <span className="font-heading font-bold text-xl">
+              Taric<span className="text-cyan-400">AI</span>
+            </span>
           </div>
           
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-slate-600">
+            <div className="flex items-center gap-2 text-gray-400">
               <User className="w-4 h-4" />
-              <span className="font-body text-sm hidden sm:inline">{user?.name}</span>
+              <span className="text-sm hidden sm:inline">{user?.name}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="status-dot" />
+              <span className="text-xs text-green-400 uppercase tracking-wider hidden sm:inline">Operativo</span>
             </div>
             <Button 
               variant="ghost" 
               size="sm"
               onClick={handleLogout}
-              className="text-slate-600 hover:text-red-600"
+              className="text-gray-400 hover:text-red-400 transition-colors"
               data-testid="logout-btn"
             >
               <LogOut className="w-4 h-4" />
@@ -172,143 +191,167 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="pt-24 pb-12 px-6">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           {/* Tab Navigation */}
-          <div className="flex gap-2 mb-8">
-            <Button
-              variant={activeTab === "search" ? "default" : "outline"}
+          <div className="flex gap-3 mb-8">
+            <button
               onClick={() => setActiveTab("search")}
-              className={`rounded-sm ${activeTab === "search" ? "bg-maritime" : ""}`}
+              className={`px-6 py-3 rounded-lg font-semibold text-sm uppercase tracking-wider transition-all flex items-center gap-2 ${
+                activeTab === "search" 
+                  ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/50" 
+                  : "bg-[#0d1424] text-gray-400 border border-[rgba(0,212,255,0.1)] hover:border-cyan-500/30"
+              }`}
               data-testid="tab-search"
             >
-              <Search className="w-4 h-4 mr-2" />
-              Nueva Búsqueda
-            </Button>
-            <Button
-              variant={activeTab === "history" ? "default" : "outline"}
+              <Zap className="w-4 h-4" />
+              Clasificar
+            </button>
+            <button
               onClick={() => setActiveTab("history")}
-              className={`rounded-sm ${activeTab === "history" ? "bg-maritime" : ""}`}
+              className={`px-6 py-3 rounded-lg font-semibold text-sm uppercase tracking-wider transition-all flex items-center gap-2 ${
+                activeTab === "history" 
+                  ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/50" 
+                  : "bg-[#0d1424] text-gray-400 border border-[rgba(0,212,255,0.1)] hover:border-cyan-500/30"
+              }`}
               data-testid="tab-history"
             >
-              <History className="w-4 h-4 mr-2" />
+              <History className="w-4 h-4" />
               Historial ({history.length})
-            </Button>
+            </button>
           </div>
 
           {activeTab === "search" && (
             <div className="space-y-8">
               {/* Search Form */}
-              <Card className="border-slate-200 rounded-sm shadow-lg">
-                <CardHeader className="pb-4">
-                  <CardTitle className="font-heading text-2xl text-maritime flex items-center gap-2">
-                    <Search className="w-6 h-6 text-trade-blue" />
-                    Clasificar Producto
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleSearch} className="space-y-4">
+              <div className="cyber-card p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold flex items-center gap-3">
+                    <Search className="w-6 h-6 text-cyan-400" />
+                    Clasificador TARIC
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 uppercase tracking-wider">Status</span>
+                    <div className="status-dot" />
+                    <span className="text-xs text-green-400 uppercase font-semibold">OPERATIVO</span>
+                  </div>
+                </div>
+                
+                <form onSubmit={handleSearch} className="space-y-6">
+                  <div className="relative">
+                    <textarea
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Describe la mercancía a clasificar... Ej: Aceite de oliva virgen extra en botella de vidrio"
+                      className="input-cyber min-h-[120px] resize-none pr-16"
+                      data-testid="search-input"
+                    />
+                    <button
+                      type="submit"
+                      disabled={searching}
+                      className="absolute bottom-4 right-4 w-12 h-12 bg-cyan-500/20 border border-cyan-500/50 rounded-lg flex items-center justify-center hover:bg-cyan-500/30 transition-colors disabled:opacity-50"
+                      data-testid="search-submit-icon"
+                    >
+                      {searching ? (
+                        <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
+                      ) : (
+                        <ArrowRight className="w-5 h-5 text-cyan-400 rotate-[-45deg]" />
+                      )}
+                    </button>
+                  </div>
+                  
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-gray-500 text-sm mr-2 uppercase tracking-wider">Ejemplos:</span>
+                    {examples.map((example, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => setExampleSearch(example)}
+                        className="example-tag"
+                        data-testid={`example-${index}`}
+                      >
+                        {example}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4 pt-4 border-t border-[rgba(0,212,255,0.1)]">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Descripción del producto
+                      <label className="label-cyber block mb-2">
+                        País de origen (opcional)
                       </label>
-                      <Input
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Ej: Manzanas frescas de Chile, Camisetas de algodón 100%, Teléfonos móviles Samsung..."
-                        className="search-input-main"
-                        data-testid="search-input"
-                      />
+                      <Select value={originCountry} onValueChange={(val) => setOriginCountry(val === "NONE" ? "" : val)}>
+                        <SelectTrigger className="input-cyber h-12" data-testid="country-select">
+                          <SelectValue placeholder="Seleccionar país (opcional)" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#0d1424] border-cyan-500/30">
+                          <SelectItem value="NONE" className="text-gray-400">Sin especificar</SelectItem>
+                          {countries.map((country) => (
+                            <SelectItem key={country.code} value={country.code} className="text-white hover:bg-cyan-500/10">
+                              {country.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          País de origen (opcional)
-                        </label>
-                        <Select value={originCountry} onValueChange={(val) => setOriginCountry(val === "NONE" ? "" : val)}>
-                          <SelectTrigger className="h-12 rounded-sm" data-testid="country-select">
-                            <SelectValue placeholder="Seleccionar país (opcional)" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="NONE">Sin especificar</SelectItem>
-                            {countries.map((country) => (
-                              <SelectItem key={country.code} value={country.code}>
-                                {country.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="flex items-end">
-                        <Button
-                          type="submit"
-                          className="btn-ai-gradient w-full h-12 rounded-sm"
-                          disabled={searching}
-                          data-testid="search-submit"
-                        >
-                          {searching ? (
-                            <>
-                              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                              Analizando con IA...
-                            </>
-                          ) : (
-                            <>
-                              <Search className="w-5 h-5 mr-2" />
-                              Buscar en TARIC
-                            </>
-                          )}
-                        </Button>
-                      </div>
+                    <div className="flex items-end">
+                      <Button
+                        type="submit"
+                        className="btn-cyber w-full h-12"
+                        disabled={searching}
+                        data-testid="search-submit"
+                      >
+                        {searching ? (
+                          <>
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                            ANALIZANDO...
+                          </>
+                        ) : (
+                          <>
+                            <Search className="w-5 h-5 mr-2" />
+                            CLASIFICAR
+                          </>
+                        )}
+                      </Button>
                     </div>
-                  </form>
-                </CardContent>
-              </Card>
+                  </div>
+                </form>
+              </div>
 
               {/* Search Result */}
               {searchResult && (
                 <div className="space-y-6 animate-fade-in-up">
                   {/* TARIC Code */}
-                  <Card className="border-slate-200 rounded-sm">
-                    <CardHeader>
-                      <CardTitle className="font-heading text-xl text-maritime">
-                        Código TARIC Sugerido
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <TaricCodeDisplay 
-                        code={searchResult.taric_code}
-                        chapter={searchResult.chapter}
-                        heading={searchResult.heading}
-                        subheading={searchResult.subheading}
-                        description={searchResult.taric_description}
-                      />
-                    </CardContent>
-                  </Card>
+                  <div className="cyber-card p-6">
+                    <h3 className="label-cyber mb-4">Código TARIC Sugerido</h3>
+                    <TaricCodeDisplay 
+                      code={searchResult.taric_code}
+                      chapter={searchResult.chapter}
+                      heading={searchResult.heading}
+                      subheading={searchResult.subheading}
+                      description={searchResult.taric_description}
+                    />
+                  </div>
 
                   {/* AI Explanation */}
                   {searchResult.ai_explanation && (
-                    <Card className="border-slate-200 rounded-sm border-l-4 border-l-trade-blue">
-                      <CardContent className="pt-6">
-                        <div className="flex gap-3">
-                          <AlertCircle className="w-5 h-5 text-trade-blue flex-shrink-0 mt-0.5" />
-                          <div>
-                            <h4 className="font-heading font-semibold text-maritime mb-2">
-                              Análisis de la IA
-                            </h4>
-                            <p className="text-slate-600 font-body text-sm leading-relaxed">
-                              {searchResult.ai_explanation}
-                            </p>
-                          </div>
+                    <div className="cyber-card p-6 border-l-4 border-l-cyan-400">
+                      <div className="flex gap-3">
+                        <AlertCircle className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="label-cyber mb-2">Análisis de la IA</h4>
+                          <p className="text-gray-400 text-sm leading-relaxed">
+                            {searchResult.ai_explanation}
+                          </p>
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </div>
                   )}
 
-                  {/* Bento Grid for Results */}
+                  {/* Bento Grid */}
                   <div className="bento-grid">
-                    {/* Duties Card */}
-                    <div className="bento-item-wide">
+                    {/* Duties */}
+                    <div className="bento-wide">
                       <DutyCalculatorCard 
                         tariffs={searchResult.tariffs}
                         totalEstimate={searchResult.total_duty_estimate}
@@ -316,43 +359,39 @@ export default function DashboardPage() {
                       />
                     </div>
 
-                    {/* Documents Card */}
+                    {/* Documents */}
                     <div>
                       <DocumentChecklist documents={searchResult.documents} />
                     </div>
 
                     {/* Official Sources */}
-                    <div>
-                      <Card className="border-slate-200 rounded-sm h-full">
-                        <CardHeader>
-                          <CardTitle className="font-heading text-lg text-maritime flex items-center gap-2">
-                            <Globe className="w-5 h-5 text-trade-blue" />
-                            Fuentes Oficiales
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          {searchResult.official_sources.map((source, index) => (
-                            <a
-                              key={index}
-                              href={source.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block p-3 bg-slate-50 rounded-sm hover:bg-slate-100 transition-colors group"
-                              data-testid={`source-link-${index}`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="font-medium text-maritime text-sm">
-                                  {source.name}
-                                </span>
-                                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-trade-blue transition-colors" />
-                              </div>
-                              <p className="text-xs text-slate-500 mt-1">
-                                {source.description}
-                              </p>
-                            </a>
-                          ))}
-                        </CardContent>
-                      </Card>
+                    <div className="cyber-card p-6">
+                      <h3 className="label-cyber mb-4 flex items-center gap-2">
+                        <Globe className="w-4 h-4" />
+                        Fuentes Oficiales
+                      </h3>
+                      <div className="space-y-3">
+                        {searchResult.official_sources.map((source, index) => (
+                          <a
+                            key={index}
+                            href={source.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block p-3 bg-[#0a0f1a] rounded-lg border border-[rgba(0,212,255,0.1)] hover:border-cyan-500/50 transition-colors group"
+                            data-testid={`source-link-${index}`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-sm">
+                                {source.name}
+                              </span>
+                              <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-cyan-400 transition-colors" />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {source.description}
+                            </p>
+                          </a>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -361,74 +400,71 @@ export default function DashboardPage() {
           )}
 
           {activeTab === "history" && (
-            <Card className="border-slate-200 rounded-sm">
-              <CardHeader>
-                <CardTitle className="font-heading text-xl text-maritime flex items-center gap-2">
-                  <History className="w-5 h-5 text-trade-blue" />
-                  Historial de Búsquedas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loadingHistory ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-trade-blue" />
-                  </div>
-                ) : history.length === 0 ? (
-                  <div className="text-center py-12">
-                    <FileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                    <p className="text-slate-500 font-body">
-                      No tienes búsquedas anteriores
-                    </p>
-                    <Button
-                      variant="link"
-                      onClick={() => setActiveTab("search")}
-                      className="text-trade-blue mt-2"
+            <div className="cyber-card p-6">
+              <h3 className="label-cyber mb-6 flex items-center gap-2">
+                <History className="w-4 h-4" />
+                Historial de Búsquedas
+              </h3>
+              
+              {loadingHistory ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="spinner-cyber" />
+                </div>
+              ) : history.length === 0 ? (
+                <div className="text-center py-12">
+                  <FileText className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-500">
+                    No tienes búsquedas anteriores
+                  </p>
+                  <Button
+                    variant="link"
+                    onClick={() => setActiveTab("search")}
+                    className="text-cyan-400 mt-2"
+                  >
+                    Realizar primera búsqueda
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {history.map((item, index) => (
+                    <div
+                      key={item.id}
+                      onClick={() => loadFromHistory(item.id)}
+                      className="flex items-center justify-between p-4 bg-[#0a0f1a] rounded-lg border border-[rgba(0,212,255,0.1)] hover:border-cyan-500/50 cursor-pointer transition-all group animate-fade-in-up"
+                      style={{ animationDelay: `${index * 0.05}s` }}
+                      data-testid={`history-item-${index}`}
                     >
-                      Realizar primera búsqueda
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {history.map((item, index) => (
-                      <div
-                        key={item.id}
-                        onClick={() => loadFromHistory(item.id)}
-                        className="flex items-center justify-between p-4 bg-slate-50 rounded-sm hover:bg-slate-100 cursor-pointer transition-colors group animate-fade-in-up"
-                        style={{ animationDelay: `${index * 0.05}s` }}
-                        data-testid={`history-item-${index}`}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-maritime truncate">
-                            {item.product_description}
-                          </p>
-                          <div className="flex items-center gap-3 mt-1">
-                            <span className="font-mono text-sm text-trade-blue">
-                              {item.taric_code}
-                            </span>
-                            <span className="flex items-center gap-1 text-xs text-slate-500">
-                              <Clock className="w-3 h-3" />
-                              {new Date(item.created_at).toLocaleDateString('es-ES')}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-trade-blue transition-colors" />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => deleteFromHistory(item.id, e)}
-                            className="text-slate-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                            data-testid={`delete-history-${index}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">
+                          {item.product_description}
+                        </p>
+                        <div className="flex items-center gap-4 mt-1">
+                          <span className="font-mono text-sm text-cyan-400">
+                            {item.taric_code}
+                          </span>
+                          <span className="flex items-center gap-1 text-xs text-gray-500">
+                            <Clock className="w-3 h-3" />
+                            {new Date(item.created_at).toLocaleDateString('es-ES')}
+                          </span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      <div className="flex items-center gap-2">
+                        <ChevronRight className="w-5 h-5 text-gray-500 group-hover:text-cyan-400 transition-colors" />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => deleteFromHistory(item.id, e)}
+                          className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                          data-testid={`delete-history-${index}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </main>

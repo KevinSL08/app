@@ -1,8 +1,6 @@
-import { Card, CardContent } from "./ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 export const TaricCodeDisplay = ({ code, chapter, heading, subheading, description }) => {
-  // Split code into pairs for display
   const codePairs = code ? [
     { value: code.slice(0, 2), label: "Capítulo", type: "chapter" },
     { value: code.slice(2, 4), label: "Partida", type: "heading" },
@@ -12,21 +10,21 @@ export const TaricCodeDisplay = ({ code, chapter, heading, subheading, descripti
   ] : [];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Code Display */}
-      <div className="flex flex-wrap items-center gap-1">
+      <div className="flex flex-wrap items-center gap-0">
         <TooltipProvider>
           {codePairs.map((pair, index) => (
             <Tooltip key={index}>
               <TooltipTrigger asChild>
                 <div 
-                  className={`taric-code-segment ${pair.type}`}
+                  className={`taric-segment ${pair.type} ${index === codePairs.length - 1 ? 'last' : ''}`}
                   data-testid={`taric-segment-${pair.type}`}
                 >
                   {pair.value}
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="top">
+              <TooltipContent side="top" className="bg-[#0d1424] border-cyan-500/30 text-white">
                 <p className="font-medium">{pair.label}</p>
               </TooltipContent>
             </Tooltip>
@@ -35,28 +33,26 @@ export const TaricCodeDisplay = ({ code, chapter, heading, subheading, descripti
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 text-xs">
+      <div className="flex flex-wrap gap-6 text-xs">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-maritime rounded-sm"></div>
-          <span className="text-slate-600">Capítulo ({chapter})</span>
+          <div className="w-3 h-3 bg-cyan-400 rounded"></div>
+          <span className="text-gray-400">Capítulo ({chapter})</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-trade-blue rounded-sm"></div>
-          <span className="text-slate-600">Partida ({heading})</span>
+          <div className="w-3 h-3 bg-cyan-400/30 border border-cyan-400 rounded"></div>
+          <span className="text-gray-400">Partida ({heading})</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-slate-200 rounded-sm"></div>
-          <span className="text-slate-600">Subpartida ({subheading})</span>
+          <div className="w-3 h-3 bg-[#0d1424] border border-[rgba(0,212,255,0.2)] rounded"></div>
+          <span className="text-gray-400">Subpartida ({subheading})</span>
         </div>
       </div>
 
       {/* Description */}
       {description && (
-        <div className="pt-4 border-t border-slate-200">
-          <h4 className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-2">
-            Descripción Oficial
-          </h4>
-          <p className="text-maritime font-body leading-relaxed" data-testid="taric-description">
+        <div className="pt-4 border-t border-[rgba(0,212,255,0.1)]">
+          <span className="label-cyber block mb-2">Descripción Oficial</span>
+          <p className="text-white leading-relaxed" data-testid="taric-description">
             {description}
           </p>
         </div>
