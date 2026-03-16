@@ -256,22 +256,23 @@ class TaricBackendTester:
         return success
 
     def test_taric_search(self):
-        """Test TARIC search functionality"""
-        print("\n🔍 TESTING TARIC SEARCH")
+        """Test TARIC search functionality with B2B features"""
+        print("\n🔍 TESTING TARIC SEARCH WITH B2B FEATURES")
         
         if not self.token:
             self.log_test_result("TARIC search", False, "No authentication token")
             return False, None
         
         search_data = {
-            "product_description": "Manzanas frescas rojas de origen español para consumo directo",
-            "origin_country": "ES"
+            "product_description": "Aceite de oliva virgen extra importado de España en botellas de vidrio",
+            "origin_country": "ES",
+            "client_reference": "OP-2024-TEST-001"  # NEW: Test B2B client reference
         }
         
         print("    ⚠️  Note: This test may take 10-30 seconds due to AI processing...")
         
         success, response = self.run_test(
-            "TARIC search with AI",
+            "TARIC search with AI and B2B features",
             "POST",
             "/taric/search",
             200,
@@ -279,13 +280,26 @@ class TaricBackendTester:
         )
         
         if success and response:
-            # Verify response structure
-            required_fields = ['id', 'taric_code', 'taric_description', 'tariffs', 'documents']
+            # Verify response structure including new B2B fields
+            required_fields = ['id', 'taric_code', 'taric_description', 'tariffs', 'documents', 'compliance_alerts', 'client_reference']
             for field in required_fields:
                 if field in response:
                     self.log_test_result(f"TARIC result field '{field}'", True, f"Present: {str(response[field])[:100]}...")
                 else:
                     self.log_test_result(f"TARIC result field '{field}'", False, f"Missing field: {field}")
+            
+            # Test compliance alerts specifically
+            if 'compliance_alerts' in response:
+                alerts = response['compliance_alerts']
+                if isinstance(alerts, list):
+                    self.log_test_result("Compliance alerts format", True, f"Found {len(alerts)} alerts")
+                    for i, alert in enumerate(alerts[:3]):  # Check first 3 alerts
+                        alert_fields = ['type', 'severity', 'message']
+                        for field in alert_fields:
+                            if field in alert:
+                                self.log_test_result(f"Alert {i+1} field '{field}'", True, f"Value: {alert[field]}")
+                else:
+                    self.log_test_result("Compliance alerts format", False, "Not a list")
             
             return success, response.get('id')
         
@@ -348,9 +362,155 @@ class TaricBackendTester:
         
         return success
 
+    def test_organization_stats(self):
+        """Test organization statistics endpoint (NEW B2B feature)"""
+        print("\n📊 TESTING ORGANIZATION STATS")
+        
+        if not self.token:
+            self.log_test_result("Organization stats", False, "No authentication token")
+            return False
+        
+        success, response = self.run_test(
+            "Get organization statistics",
+            "GET",
+            "/team/stats",
+            200
+        )
+        
+        if success and response:
+            # Verify stats structure
+            required_fields = ['total_searches', 'searches_this_month', 'team_members', 'saved_operations']
+            for field in required_fields:
+                if field in response:
+                    self.log_test_result(f"Stats field '{field}'", True, f"Value: {response[field]}")
+                else:
+                    self.log_test_result(f"Stats field '{field}'", False, f"Missing field: {field}")
+        
+        return success
+
+    def test_team_members(self):
+        """Test team members management (NEW B2B feature)"""
+        print("\n👥 TESTING TEAM MANAGEMENT")
+        
+        if not self.token:
+            self.log_test_result("Team members", False, "No authentication token")
+            return False, []
+        
+        # Get team members
+        success, response = self.run_test(
+            "Get team members",
+            "GET",
+            "/team/members",
+            200
+        )
+        
+        members = []
+        if success and isinstance(response, list):
+            members = response
+            self.log_test_result("Team members format", True, f"Found {len(members)} members")
+            
+            # Check structure of first member if exists
+            if members:
+                member = members[0]
+                member_fields = ['id', 'email', 'name', 'role', 'status']
+                for field in member_fields:
+                    if field in member:
+                        self.log_test_result(f"Member field '{field}'", True, f"Value: {member[field]}")
+                    else:
+                        self.log_test_result(f"Member field '{field}'", False, f"Missing field: {field}")
+        else:
+            self.log_test_result("Team members format", False, "Response is not a list")
+        
+        return success, members
+
+    def test_team_invite(self):
+        """Test team member invitation (NEW B2B feature)"""
+        print("\n💌 TESTING TEAM INVITE")
+        
+        if not self.token:
+            self.log_test_result("Team invite", False, "No authentication token")
+            return False, None
+        
+        invite_data = {
+            "email": f"invited_{uuid.uuid4().hex[:8]}@example.com",
+            "name": "Invited Test User",
+            "role": "operator"
+        }
+        
+        success, response = self.run_test(
+            "Invite team member",
+            "POST",
+            "/team/invite",
+            200,
+            data=invite_data
+        )
+        
+        member_id = None
+        if success and response:
+            # Verify invite response structure
+            invite_fields = ['id', 'email', 'name', 'role', 'status']
+            for field in invite_fields:
+                if field in response:
+                    self.log_test_result(f"Invite response field '{field}'", True, f"Value: {response[field]}")
+                else:
+                    self.log_test_result(f"Invite response field '{field}'", False, f"Missing field: {field}")
+            
+            member_id = response.get('id')
+        
+        return success, member_id
+
+    def test_team_remove(self, member_id):
+        """Test team member removal (NEW B2B feature)"""
+        print("\n❌ TESTING TEAM MEMBER REMOVAL")
+        
+        if not self.token or not member_id:
+            self.log_test_result("Remove team member", False, "No token or member ID")
+            return False
+        
+        success, response = self.run_test(
+            "Remove team member",
+            "DELETE",
+            f"/team/members/{member_id}",
+            200
+        )
+        
+        return success
+
+    def test_regulatory_alerts(self):
+        """Test regulatory alerts endpoint (NEW B2B feature)"""
+        print("\n🚨 TESTING REGULATORY ALERTS")
+        
+        if not self.token:
+            self.log_test_result("Regulatory alerts", False, "No authentication token")
+            return False
+        
+        success, response = self.run_test(
+            "Get regulatory alerts",
+            "GET",
+            "/alerts/regulatory",
+            200
+        )
+        
+        if success and isinstance(response, list):
+            self.log_test_result("Regulatory alerts format", True, f"Found {len(response)} alerts")
+            
+            # Check structure of first alert if exists
+            if response:
+                alert = response[0]
+                alert_fields = ['id', 'type', 'title', 'description', 'affected_codes', 'effective_date', 'source']
+                for field in alert_fields:
+                    if field in alert:
+                        self.log_test_result(f"Alert field '{field}'", True, f"Present: {str(alert[field])[:50]}...")
+                    else:
+                        self.log_test_result(f"Alert field '{field}'", False, f"Missing field: {field}")
+        else:
+            self.log_test_result("Regulatory alerts format", False, "Response is not a list")
+        
+        return success
+
     def run_all_tests(self):
-        """Run all backend tests"""
-        print(f"🚀 STARTING TARIC BACKEND TESTS")
+        """Run all backend tests including B2B features"""
+        print(f"🚀 STARTING TARIC BACKEND TESTS (B2B Edition)")
         print(f"Testing against: {self.base_url}")
         print("=" * 60)
         
@@ -365,7 +525,20 @@ class TaricBackendTester:
             self.test_get_current_user()
             self.test_protected_route_without_token()
             
-            # Test TARIC functionality
+            # Test NEW B2B organization features
+            self.test_organization_stats()
+            team_success, members = self.test_team_members()
+            
+            # Test team management features
+            invite_success, invited_member_id = self.test_team_invite()
+            if invite_success and invited_member_id:
+                # Test removing the invited member
+                self.test_team_remove(invited_member_id)
+            
+            # Test regulatory alerts
+            self.test_regulatory_alerts()
+            
+            # Test TARIC functionality with B2B features
             search_success, result_id = self.test_taric_search()
             self.test_search_history()
             
@@ -378,7 +551,7 @@ class TaricBackendTester:
         
         # Print final results
         print("\n" + "=" * 60)
-        print(f"📊 BACKEND TEST RESULTS")
+        print(f"📊 BACKEND TEST RESULTS (B2B Features)")
         print(f"Tests passed: {self.tests_passed}/{self.tests_run}")
         success_rate = (self.tests_passed / self.tests_run * 100) if self.tests_run > 0 else 0
         print(f"Success rate: {success_rate:.1f}%")

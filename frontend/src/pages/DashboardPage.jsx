@@ -4,6 +4,7 @@ import { useAuth, API } from "../App";
 import axios from "axios";
 import { Button } from "../components/ui/button";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 import {
   Search,
   Container,
@@ -18,7 +19,17 @@ import {
   ChevronRight,
   AlertCircle,
   ArrowRight,
-  Zap
+  Zap,
+  Users,
+  BarChart3,
+  Bell,
+  Shield,
+  Settings,
+  Building2,
+  TrendingUp,
+  AlertTriangle,
+  CheckCircle2,
+  UserPlus
 } from "lucide-react";
 import {
   Select,
@@ -27,9 +38,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../components/ui/dialog";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
 import TaricCodeDisplay from "../components/TaricCodeDisplay";
 import DutyCalculatorCard from "../components/DutyCalculatorCard";
 import DocumentChecklist from "../components/DocumentChecklist";
+import ComplianceAlerts from "../components/ComplianceAlerts";
 
 export default function DashboardPage() {
   const { user, token, logout } = useAuth();
@@ -37,11 +59,17 @@ export default function DashboardPage() {
   
   const [searchQuery, setSearchQuery] = useState("");
   const [originCountry, setOriginCountry] = useState("");
+  const [clientReference, setClientReference] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResult, setSearchResult] = useState(null);
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [activeTab, setActiveTab] = useState("search");
+  const [stats, setStats] = useState(null);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [inviteData, setInviteData] = useState({ email: "", name: "", role: "operator" });
+  const [inviting, setInviting] = useState(false);
 
   const countries = [
     { code: "CN", name: "China" },
@@ -58,18 +86,23 @@ export default function DashboardPage() {
     { code: "GB", name: "Reino Unido" },
     { code: "CL", name: "Chile" },
     { code: "AR", name: "Argentina" },
+    { code: "MA", name: "Marruecos" },
     { code: "OTHER", name: "Otro país" }
   ];
 
   const examples = [
-    "Aceite de oliva virgen extra en botella",
-    "Camiseta de algodón 100%",
+    "Aceite de oliva virgen extra en botella de vidrio",
+    "Camisetas de algodón 100% para hombre",
     "Tornillos de acero inoxidable M8",
-    "Vino tinto Rioja reserva"
+    "Vino tinto Rioja reserva 2019"
   ];
 
   useEffect(() => {
     fetchHistory();
+    fetchStats();
+    if (user?.role === "admin") {
+      fetchTeamMembers();
+    }
   }, []);
 
   const fetchHistory = async () => {
@@ -82,6 +115,28 @@ export default function DashboardPage() {
       console.error("Error fetching history:", error);
     } finally {
       setLoadingHistory(false);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const response = await axios.get(`${API}/team/stats`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setStats(response.data);
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+    }
+  };
+
+  const fetchTeamMembers = async () => {
+    try {
+      const response = await axios.get(`${API}/team/members`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTeamMembers(response.data);
+    } catch (error) {
+      console.error("Error fetching team:", error);
     }
   };
 
@@ -101,14 +156,16 @@ export default function DashboardPage() {
         `${API}/taric/search`,
         {
           product_description: searchQuery,
-          origin_country: originCountry || null
+          origin_country: originCountry || null,
+          client_reference: clientReference || null
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
       setSearchResult(response.data);
       fetchHistory();
-      toast.success("Análisis completado");
+      fetchStats();
+      toast.success("Clasificación completada con éxito");
     } catch (error) {
       const message = error.response?.data?.detail || "Error al realizar la búsqueda";
       toast.error(message);
@@ -125,6 +182,7 @@ export default function DashboardPage() {
       setSearchResult(response.data);
       setSearchQuery(response.data.product_description);
       setOriginCountry(response.data.origin_country || "");
+      setClientReference(response.data.client_reference || "");
       setActiveTab("search");
     } catch (error) {
       toast.error("Error al cargar el resultado");
@@ -138,9 +196,47 @@ export default function DashboardPage() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setHistory(prev => prev.filter(item => item.id !== resultId));
+      fetchStats();
       toast.success("Búsqueda eliminada");
     } catch (error) {
       toast.error("Error al eliminar");
+    }
+  };
+
+  const handleInviteMember = async () => {
+    if (!inviteData.email || !inviteData.name) {
+      toast.error("Completa todos los campos");
+      return;
+    }
+
+    setInviting(true);
+    try {
+      await axios.post(
+        `${API}/team/invite`,
+        inviteData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success(`Invitación enviada a ${inviteData.email}`);
+      setShowInviteDialog(false);
+      setInviteData({ email: "", name: "", role: "operator" });
+      fetchTeamMembers();
+    } catch (error) {
+      const message = error.response?.data?.detail || "Error al invitar";
+      toast.error(message);
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    try {
+      await axios.delete(`${API}/team/members/${memberId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success("Miembro eliminado");
+      fetchTeamMembers();
+    } catch (error) {
+      toast.error("Error al eliminar miembro");
     }
   };
 
@@ -162,15 +258,21 @@ export default function DashboardPage() {
             <div className="w-10 h-10 bg-[#0d1424] border border-cyan-500/30 rounded-lg flex items-center justify-center">
               <Container className="w-5 h-5 text-cyan-400" />
             </div>
-            <span className="font-heading font-bold text-xl">
-              Taric<span className="text-cyan-400">AI</span>
-            </span>
+            <div>
+              <span className="font-heading font-bold text-xl block">
+                Taric<span className="text-cyan-400">AI</span>
+              </span>
+              {user?.company && (
+                <span className="text-xs text-gray-500">{user.company}</span>
+              )}
+            </div>
           </div>
           
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-gray-400">
+            <div className="hidden md:flex items-center gap-2 text-gray-400 bg-[#0d1424] px-3 py-2 rounded-lg border border-cyan-500/10">
               <User className="w-4 h-4" />
-              <span className="text-sm hidden sm:inline">{user?.name}</span>
+              <span className="text-sm">{user?.name}</span>
+              <span className="text-xs text-cyan-400 uppercase">{user?.role}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="status-dot" />
@@ -191,9 +293,51 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="pt-24 pb-12 px-6">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
+          {/* Stats Cards */}
+          {stats && (
+            <motion.div 
+              className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="cyber-card p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <BarChart3 className="w-5 h-5 text-cyan-400" />
+                  <span className="label-cyber text-[10px]">ESTE MES</span>
+                </div>
+                <div className="text-2xl font-bold text-white font-mono">{stats.searches_this_month}</div>
+                <div className="text-xs text-gray-500">Clasificaciones</div>
+              </div>
+              <div className="cyber-card p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <TrendingUp className="w-5 h-5 text-green-400" />
+                  <span className="label-cyber text-[10px]">TOTAL</span>
+                </div>
+                <div className="text-2xl font-bold text-white font-mono">{stats.total_searches}</div>
+                <div className="text-xs text-gray-500">Búsquedas históricas</div>
+              </div>
+              <div className="cyber-card p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <Users className="w-5 h-5 text-cyan-400" />
+                  <span className="label-cyber text-[10px]">EQUIPO</span>
+                </div>
+                <div className="text-2xl font-bold text-white font-mono">{stats.team_members}</div>
+                <div className="text-xs text-gray-500">Miembros activos</div>
+              </div>
+              <div className="cyber-card p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <Shield className="w-5 h-5 text-amber-400" />
+                  <span className="label-cyber text-[10px]">COMPLIANCE</span>
+                </div>
+                <div className="text-2xl font-bold text-green-400 font-mono">OK</div>
+                <div className="text-xs text-gray-500">Sin alertas críticas</div>
+              </div>
+            </motion.div>
+          )}
+
           {/* Tab Navigation */}
-          <div className="flex gap-3 mb-8">
+          <div className="flex flex-wrap gap-3 mb-8">
             <button
               onClick={() => setActiveTab("search")}
               className={`px-6 py-3 rounded-lg font-semibold text-sm uppercase tracking-wider transition-all flex items-center gap-2 ${
@@ -218,12 +362,31 @@ export default function DashboardPage() {
               <History className="w-4 h-4" />
               Historial ({history.length})
             </button>
+            {user?.role === "admin" && (
+              <button
+                onClick={() => setActiveTab("team")}
+                className={`px-6 py-3 rounded-lg font-semibold text-sm uppercase tracking-wider transition-all flex items-center gap-2 ${
+                  activeTab === "team" 
+                    ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/50" 
+                    : "bg-[#0d1424] text-gray-400 border border-[rgba(0,212,255,0.1)] hover:border-cyan-500/30"
+                }`}
+                data-testid="tab-team"
+              >
+                <Users className="w-4 h-4" />
+                Equipo ({teamMembers.length})
+              </button>
+            )}
           </div>
 
+          {/* Search Tab */}
           {activeTab === "search" && (
             <div className="space-y-8">
               {/* Search Form */}
-              <div className="cyber-card p-8">
+              <motion.div 
+                className="cyber-card p-8"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold flex items-center gap-3">
                     <Search className="w-6 h-6 text-cyan-400" />
@@ -241,7 +404,7 @@ export default function DashboardPage() {
                     <textarea
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Describe la mercancía a clasificar... Ej: Aceite de oliva virgen extra en botella de vidrio"
+                      placeholder="Describe la mercancía a clasificar con el mayor detalle posible... Ej: Aceite de oliva virgen extra en botella de vidrio de 750ml procedente de España"
                       className="input-cyber min-h-[120px] resize-none pr-16"
                       data-testid="search-input"
                     />
@@ -269,15 +432,15 @@ export default function DashboardPage() {
                         className="example-tag"
                         data-testid={`example-${index}`}
                       >
-                        {example}
+                        {example.length > 35 ? example.slice(0, 35) + "..." : example}
                       </button>
                     ))}
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-4 pt-4 border-t border-[rgba(0,212,255,0.1)]">
+                  <div className="grid md:grid-cols-3 gap-4 pt-4 border-t border-cyan-500/10">
                     <div>
                       <label className="label-cyber block mb-2">
-                        País de origen (opcional)
+                        País de origen
                       </label>
                       <Select value={originCountry} onValueChange={(val) => setOriginCountry(val === "NONE" ? "" : val)}>
                         <SelectTrigger className="input-cyber h-12" data-testid="country-select">
@@ -294,6 +457,20 @@ export default function DashboardPage() {
                       </Select>
                     </div>
                     
+                    <div>
+                      <label className="label-cyber block mb-2">
+                        Referencia cliente (B2B)
+                      </label>
+                      <input
+                        type="text"
+                        value={clientReference}
+                        onChange={(e) => setClientReference(e.target.value)}
+                        placeholder="Ej: OP-2024-001"
+                        className="input-cyber h-12"
+                        data-testid="client-reference"
+                      />
+                    </div>
+                    
                     <div className="flex items-end">
                       <Button
                         type="submit"
@@ -308,7 +485,7 @@ export default function DashboardPage() {
                           </>
                         ) : (
                           <>
-                            <Search className="w-5 h-5 mr-2" />
+                            <Zap className="w-5 h-5 mr-2" />
                             CLASIFICAR
                           </>
                         )}
@@ -316,14 +493,32 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </form>
-              </div>
+              </motion.div>
 
               {/* Search Result */}
               {searchResult && (
-                <div className="space-y-6 animate-fade-in-up">
+                <motion.div 
+                  className="space-y-6"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  {/* Header with confidence */}
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold">Resultado de Clasificación</h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500 uppercase">Confianza IA:</span>
+                      <span className="text-cyan-400 font-mono font-bold">{searchResult.ai_confidence}</span>
+                    </div>
+                  </div>
+
+                  {/* Compliance Alerts (if any) */}
+                  {searchResult.compliance_alerts && searchResult.compliance_alerts.length > 0 && (
+                    <ComplianceAlerts alerts={searchResult.compliance_alerts} />
+                  )}
+
                   {/* TARIC Code */}
                   <div className="cyber-card p-6">
-                    <h3 className="label-cyber mb-4">Código TARIC Sugerido</h3>
+                    <h3 className="label-cyber mb-4">Código TARIC Identificado</h3>
                     <TaricCodeDisplay 
                       code={searchResult.taric_code}
                       chapter={searchResult.chapter}
@@ -339,7 +534,7 @@ export default function DashboardPage() {
                       <div className="flex gap-3">
                         <AlertCircle className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
                         <div>
-                          <h4 className="label-cyber mb-2">Análisis de la IA</h4>
+                          <h4 className="label-cyber mb-2">Análisis y Fundamentación</h4>
                           <p className="text-gray-400 text-sm leading-relaxed">
                             {searchResult.ai_explanation}
                           </p>
@@ -356,6 +551,7 @@ export default function DashboardPage() {
                         tariffs={searchResult.tariffs}
                         totalEstimate={searchResult.total_duty_estimate}
                         vatRate={searchResult.vat_rate}
+                        preferentialDuties={searchResult.preferential_duties}
                       />
                     </div>
 
@@ -368,7 +564,7 @@ export default function DashboardPage() {
                     <div className="cyber-card p-6">
                       <h3 className="label-cyber mb-4 flex items-center gap-2">
                         <Globe className="w-4 h-4" />
-                        Fuentes Oficiales
+                        Fuentes Oficiales Consultadas
                       </h3>
                       <div className="space-y-3">
                         {searchResult.official_sources.map((source, index) => (
@@ -386,24 +582,29 @@ export default function DashboardPage() {
                               </span>
                               <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-cyan-400 transition-colors" />
                             </div>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {source.description}
+                            <p className="text-xs text-cyan-400 mt-1">
+                              {source.authority}
                             </p>
                           </a>
                         ))}
                       </div>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               )}
             </div>
           )}
 
+          {/* History Tab */}
           {activeTab === "history" && (
-            <div className="cyber-card p-6">
+            <motion.div 
+              className="cyber-card p-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
               <h3 className="label-cyber mb-6 flex items-center gap-2">
                 <History className="w-4 h-4" />
-                Historial de Búsquedas
+                Historial de Clasificaciones
               </h3>
               
               {loadingHistory ? (
@@ -413,39 +614,46 @@ export default function DashboardPage() {
               ) : history.length === 0 ? (
                 <div className="text-center py-12">
                   <FileText className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-500">
-                    No tienes búsquedas anteriores
-                  </p>
+                  <p className="text-gray-500">No hay clasificaciones anteriores</p>
                   <Button
                     variant="link"
                     onClick={() => setActiveTab("search")}
                     className="text-cyan-400 mt-2"
                   >
-                    Realizar primera búsqueda
+                    Realizar primera clasificación
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {history.map((item, index) => (
-                    <div
+                    <motion.div
                       key={item.id}
                       onClick={() => loadFromHistory(item.id)}
-                      className="flex items-center justify-between p-4 bg-[#0a0f1a] rounded-lg border border-[rgba(0,212,255,0.1)] hover:border-cyan-500/50 cursor-pointer transition-all group animate-fade-in-up"
-                      style={{ animationDelay: `${index * 0.05}s` }}
+                      className="flex items-center justify-between p-4 bg-[#0a0f1a] rounded-lg border border-[rgba(0,212,255,0.1)] hover:border-cyan-500/50 cursor-pointer transition-all group"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
                       data-testid={`history-item-${index}`}
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">
-                          {item.product_description}
-                        </p>
+                        <p className="font-medium truncate">{item.product_description}</p>
                         <div className="flex items-center gap-4 mt-1">
-                          <span className="font-mono text-sm text-cyan-400">
-                            {item.taric_code}
-                          </span>
+                          <span className="font-mono text-sm text-cyan-400">{item.taric_code}</span>
+                          {item.client_reference && (
+                            <span className="text-xs text-gray-500 bg-[#0d1424] px-2 py-0.5 rounded">
+                              {item.client_reference}
+                            </span>
+                          )}
                           <span className="flex items-center gap-1 text-xs text-gray-500">
                             <Clock className="w-3 h-3" />
                             {new Date(item.created_at).toLocaleDateString('es-ES')}
                           </span>
+                          {item.user_name && (
+                            <span className="flex items-center gap-1 text-xs text-gray-500">
+                              <User className="w-3 h-3" />
+                              {item.user_name}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -460,11 +668,135 @@ export default function DashboardPage() {
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               )}
-            </div>
+            </motion.div>
+          )}
+
+          {/* Team Tab */}
+          {activeTab === "team" && user?.role === "admin" && (
+            <motion.div 
+              className="cyber-card p-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="label-cyber flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Gestión del Equipo
+                </h3>
+                <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+                  <DialogTrigger asChild>
+                    <Button className="btn-cyber h-10 px-4 text-sm" data-testid="invite-member-btn">
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Invitar Miembro
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-[#0d1424] border-cyan-500/30">
+                    <DialogHeader>
+                      <DialogTitle className="text-white">Invitar nuevo miembro</DialogTitle>
+                      <DialogDescription className="text-gray-400">
+                        Añade un nuevo usuario a tu organización
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-4">
+                      <div>
+                        <Label className="label-cyber">Nombre</Label>
+                        <Input
+                          value={inviteData.name}
+                          onChange={(e) => setInviteData(prev => ({ ...prev, name: e.target.value }))}
+                          className="input-cyber mt-2"
+                          placeholder="Nombre completo"
+                          data-testid="invite-name"
+                        />
+                      </div>
+                      <div>
+                        <Label className="label-cyber">Email</Label>
+                        <Input
+                          type="email"
+                          value={inviteData.email}
+                          onChange={(e) => setInviteData(prev => ({ ...prev, email: e.target.value }))}
+                          className="input-cyber mt-2"
+                          placeholder="email@empresa.com"
+                          data-testid="invite-email"
+                        />
+                      </div>
+                      <div>
+                        <Label className="label-cyber">Rol</Label>
+                        <Select value={inviteData.role} onValueChange={(val) => setInviteData(prev => ({ ...prev, role: val }))}>
+                          <SelectTrigger className="input-cyber mt-2" data-testid="invite-role">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#0d1424] border-cyan-500/30">
+                            <SelectItem value="admin" className="text-white">Admin - Acceso total</SelectItem>
+                            <SelectItem value="operator" className="text-white">Operador - Clasificaciones</SelectItem>
+                            <SelectItem value="viewer" className="text-white">Consultor - Solo lectura</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button
+                        className="btn-cyber w-full"
+                        onClick={handleInviteMember}
+                        disabled={inviting}
+                        data-testid="send-invite"
+                      >
+                        {inviting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                        Enviar Invitación
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              <div className="space-y-2">
+                {teamMembers.map((member, index) => (
+                  <motion.div
+                    key={member.id}
+                    className="flex items-center justify-between p-4 bg-[#0a0f1a] rounded-lg border border-[rgba(0,212,255,0.1)]"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    data-testid={`team-member-${index}`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-cyan-500/20 border border-cyan-500/30 rounded-lg flex items-center justify-center">
+                        <User className="w-5 h-5 text-cyan-400" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{member.name}</p>
+                        <p className="text-xs text-gray-500">{member.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className={`text-xs uppercase px-2 py-1 rounded ${
+                        member.role === 'admin' ? 'bg-cyan-500/20 text-cyan-400' :
+                        member.role === 'operator' ? 'bg-green-500/20 text-green-400' :
+                        'bg-gray-500/20 text-gray-400'
+                      }`}>
+                        {member.role}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs text-gray-500">
+                        <div className={`w-2 h-2 rounded-full ${member.status === 'active' ? 'bg-green-400' : 'bg-amber-400'}`} />
+                        {member.status}
+                      </span>
+                      {member.id !== user?.id && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveMember(member.id)}
+                          className="text-gray-500 hover:text-red-400"
+                          data-testid={`remove-member-${index}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
           )}
         </div>
       </main>
