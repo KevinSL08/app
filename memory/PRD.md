@@ -1,116 +1,98 @@
 # TARIC AI - Product Requirements Document
 
 ## Problem Statement
-Crear una aplicación SaaS B2B para agencias de aduanas que permita consultar el TARIC (Arancel Integrado de las Comunidades Europeas). La aplicación permite buscar productos usando palabras clave y con inteligencia artificial obtener la nomenclatura arancelaria correcta, aranceles, tributos y documentos requeridos (fitosanitarios y no fitosanitarios). Gestión de equipos empresariales, alertas regulatorias en tiempo real, y datos 100% de fuentes oficiales.
+Aplicación SaaS B2B para agencias de aduanas que permite consultar el TARIC con IA, calcular aranceles, gestionar documentación oficial con PDFs descargables, y alertas regulatorias en tiempo real.
 
 ## Architecture
 - **Frontend**: React 19 + Tailwind CSS + Shadcn/UI + Framer Motion + jsPDF
-- **Backend**: FastAPI + MongoDB + emergentintegrations
+- **Backend**: FastAPI + MongoDB + emergentintegrations + Documents Database
 - **AI**: OpenAI GPT-5.2 via Emergent LLM Key
-- **Auth**: JWT-based authentication with organizations
 
-## Design Theme
-- **Theme**: Futuristic Dark / Cyberpunk
-- **Primary Background**: #0a0f1a (Deep dark blue)
-- **Accent Color**: #00d4ff (Cyan/Turquoise)
-- **Cards**: Cyber cards with glowing borders
-- **Animations**: Framer Motion for smooth transitions
-- **Typography**: Plus Jakarta Sans, IBM Plex Sans, JetBrains Mono
+## Core Features Implemented
 
-## User Personas
-1. **Agencias de Aduanas**: Empresas que gestionan despacho aduanero
-2. **Importadores B2B**: Empresas que importan productos a España/UE
-3. **Operadores de Comercio Exterior**: Profesionales de logística internacional
-
-## Core Features (Implemented)
-
-### 1. Clasificación TARIC con IA
-- Motor GPT-5.2 con 94% precisión
-- Códigos TARIC de 10 dígitos con desglose visual
-- Explicación detallada de la clasificación
+### 1. Clasificación TARIC con IA (94% precisión)
+- Códigos TARIC 10 dígitos con desglose visual
 - Nivel de confianza de la IA
+- Explicación detallada de clasificación
 
 ### 2. Cálculo de Aranceles
 - Derechos de importación convencionales
-- IVA importación
+- IVA importación (21% España)
 - Aranceles preferenciales según acuerdos
 - Base legal de cada tributo
 
-### 3. Compliance Automatizado
-- Alertas anti-dumping
-- Sanciones comerciales
+### 3. Base de Datos de Documentos Oficiales (15 documentos)
+**CITES** (MITECO):
+- Permiso Importación/Exportación CITES
+- PDF: cites.comercio.gob.es
+- Guía: miteco.gob.es
+
+**Fitosanitarios** (MAPA):
+- Certificado Fitosanitario
+- Solicitud Inspección
+- PDF: mapa.gob.es
+
+**Aduaneros** (AEAT):
+- DUA Importación/Exportación
+- EUR.1 Origen Preferencial
+- Certificado Origen
+- T2L Estatuto Aduanero
+- PDF: agenciatributaria.gob.es, comercio.gob.es
+
+**Sanitarios** (AESAN):
+- Certificado Sanitario Alimentos
+- Inscripción RGSEAA
+- Certificado Veterinario
+- PDF: aesan.gob.es
+
+**Otros**:
+- Declaración CE
+- Impuestos Especiales
+- Certificado Anti-Dumping
+
+### 4. Panel de Alertas Regulatorias (5 alertas)
+- Anti-dumping acero China
 - Restricciones fitosanitarias
-- Control CITES
+- Biodiésel Argentina
+- Sanciones comerciales
+- CITES actualización
 
-### 4. Panel de Alertas Regulatorias
-- 5+ alertas en tiempo real
-- Filtros por tipo (Anti-dumping, Restricciones)
-- Códigos afectados por cada alerta
-- Fuentes oficiales (DOUE, BOE, MAPA)
-
-### 5. Documentación Oficial
-- Checklist inteligente obligatorios/opcionales
-- Autoridades emisoras
-- Links a tramitación oficial
-- Tipos: Fitosanitario, No Fitosanitario, Aduanero
-
-### 6. Gestión de Equipos B2B
+### 5. Gestión de Equipos B2B
 - Roles: Admin, Operador, Consultor
-- Invitación de miembros por email
-- Control de accesos
-- Historial de actividad
-
-### 7. Trazabilidad B2B
-- Campo de referencia cliente (ej: OP-2024-001)
-- Atribución de usuario en historial
+- Invitación de miembros
 - Estadísticas de organización
 
-### 8. Exportación PDF
-- Generación de informes profesionales
+### 6. Exportación PDF
+- Informes profesionales con logo
 - Incluye todos los datos de clasificación
-- Logo y branding TaricAI
-- Fuentes oficiales referenciadas
 
-## Official Sources Integration
-- TARIC - Comisión Europea (ec.europa.eu/taxation_customs)
-- Agencia Tributaria AEAT (agenciatributaria.es)
-- Ministerio de Agricultura MAPA (mapa.gob.es)
-- EUR-Lex - DOUE (eur-lex.europa.eu)
-- MITECO - CITES España
+## Official Sources
+- TARIC UE (ec.europa.eu)
+- AEAT (agenciatributaria.es)
+- MAPA (mapa.gob.es)
+- MITECO (miteco.gob.es)
+- AESAN (aesan.gob.es)
+- EUR-Lex (eur-lex.europa.eu)
 
-## Landing Page B2B
-- Sección "Problemas que Resolvemos"
-- Sección "Fuentes Oficiales 100%"
-- Compromiso de fiabilidad
-- Planes: Starter (€249), Professional (€599), Enterprise (€1,499)
+## API Endpoints
+- POST /api/auth/register, /login
+- GET /api/auth/me
+- POST /api/taric/search
+- GET /api/taric/history, /result/{id}
+- GET /api/team/members, /stats
+- POST /api/team/invite
+- GET /api/documents/library
+- GET /api/documents/{doc_id}
+- GET /api/alerts/regulatory
 
-## Known Issues
-- None critical - All features working
-
-## Prioritized Backlog
-
-### P0 (Critical) - DONE ✅
-- Core TARIC classification with AI
-- B2B team management
-- Compliance alerts
-- PDF export
-- Regulatory alerts panel
-
-### P1 (High Priority)
-- Email notifications for team invites
-- Password recovery flow
-- Bulk product classification
-- Scheduled regulatory alerts digest
-
-### P2 (Medium Priority)
-- Multi-language support (English)
-- Custom tariff calculators
-- API access for Enterprise
-- Audit log for compliance
-- Integration with ERP systems
+## Testing Results
+- Backend: 97.6% success
+- 15 documents with PDF links verified
+- CITES, DUA, Fitosanitario PDFs working
 
 ## Next Tasks
-1. Implement email service for team invitations
-2. Build password recovery flow
-3. Add bulk import/classification feature
-4. Create scheduled job for official source updates
+1. Implement email service for team invites
+2. Password recovery flow
+3. Bulk product classification
+4. Scheduled regulatory alerts digest
+5. API access for Enterprise tier
