@@ -44,7 +44,6 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("search");
 
   const countries = [
-    { code: "", name: "Seleccionar país (opcional)" },
     { code: "CN", name: "China" },
     { code: "US", name: "Estados Unidos" },
     { code: "MX", name: "México" },
@@ -226,11 +225,12 @@ export default function DashboardPage() {
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                           País de origen (opcional)
                         </label>
-                        <Select value={originCountry} onValueChange={setOriginCountry}>
+                        <Select value={originCountry} onValueChange={(val) => setOriginCountry(val === "NONE" ? "" : val)}>
                           <SelectTrigger className="h-12 rounded-sm" data-testid="country-select">
-                            <SelectValue placeholder="Seleccionar país" />
+                            <SelectValue placeholder="Seleccionar país (opcional)" />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="NONE">Sin especificar</SelectItem>
                             {countries.map((country) => (
                               <SelectItem key={country.code} value={country.code}>
                                 {country.name}
