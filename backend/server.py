@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 import jwt
 import bcrypt
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+from documents_database import OFFICIAL_DOCUMENTS, DOCUMENT_CATEGORIES
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -92,6 +93,11 @@ class DocumentRequirement(BaseModel):
     description: str
     official_link: Optional[str] = None
     issuing_authority: Optional[str] = None
+    pdf_form: Optional[str] = None
+    pdf_guide: Optional[str] = None
+    online_portal: Optional[str] = None
+    validity_days: Optional[int] = None
+    processing_time: Optional[str] = None
 
 class TariffDetail(BaseModel):
     duty_type: str
@@ -485,16 +491,64 @@ async def search_taric(request: TaricSearchRequest, current_user: dict = Depends
             legal_base=t.get("legal_base")
         ))
     
-    # Build documents list
+    # Build documents list with PDF links from official database
     documents = []
     for d in ai_result.get("documents", []):
+        doc_name = d.get("name", "").lower()
+        
+        # Try to match with official documents database
+        pdf_form = None
+        pdf_guide = None
+        online_portal = None
+        validity_days = None
+        processing_time = None
+        official_link = d.get("official_link")
+        issuing_authority = d.get("issuing_authority")
+        
+        # Match document names with our database
+        for doc_id, doc_data in OFFICIAL_DOCUMENTS.items():
+            if any(keyword in doc_name for keyword in doc_data["name"].lower().split()):
+                pdf_form = doc_data.get("pdf_form")
+                pdf_guide = doc_data.get("pdf_guide")
+                online_portal = doc_data.get("online_portal")
+                validity_days = doc_data.get("validity_days")
+                processing_time = doc_data.get("processing_time")
+                if not official_link:
+                    official_link = doc_data.get("official_link")
+                if not issuing_authority:
+                    issuing_authority = doc_data.get("issuing_authority")
+                break
+        
         documents.append(DocumentRequirement(
             name=d.get("name", ""),
             type=d.get("type", "aduanero"),
             required=d.get("required", False),
             description=d.get("description", ""),
-            official_link=d.get("official_link"),
-            issuing_authority=d.get("issuing_authority")
+            official_link=official_link,
+            issuing_authority=issuing_authority,
+            pdf_form=pdf_form,
+            pdf_guide=pdf_guide,
+            online_portal=online_portal,
+            validity_days=validity_days,
+            processing_time=processing_time
+        ))
+    
+    # Always add DUA as required document with PDF
+    dua_exists = any("dua" in d.name.lower() for d in documents)
+    if not dua_exists:
+        dua_doc = OFFICIAL_DOCUMENTS.get("dua_import", {})
+        documents.insert(0, DocumentRequirement(
+            name="DUA - Documento Único Administrativo",
+            type="aduanero",
+            required=True,
+            description="Declaración aduanera obligatoria para importaciones de terceros países",
+            official_link=dua_doc.get("official_link"),
+            issuing_authority="AEAT - Agencia Tributaria",
+            pdf_form=dua_doc.get("pdf_form"),
+            pdf_guide=dua_doc.get("pdf_guide"),
+            online_portal=dua_doc.get("online_portal"),
+            validity_days=0,
+            processing_time="Inmediato (electrónico)"
         ))
     
     # Build compliance alerts
@@ -695,6 +749,32 @@ async def get_regulatory_alerts(current_user: dict = Depends(get_current_user)):
         )
     ]
     return alerts
+
+# ============== DOCUMENTS LIBRARY ==============
+
+@api_router.get("/documents/library")
+async def get_documents_library(current_user: dict = Depends(get_current_user)):
+    """Get all official documents available with PDF links"""
+    documents_list = []
+    for doc_id, doc_data in OFFICIAL_DOCUMENTS.items():
+        documents_list.append({
+            "id": doc_id,
+            **doc_data
+        })
+    return {
+        "documents": documents_list,
+        "categories": DOCUMENT_CATEGORIES
+    }
+
+@api_router.get("/documents/{doc_id}")
+async def get_document_detail(doc_id: str, current_user: dict = Depends(get_current_user)):
+    """Get detailed information about a specific document"""
+    if doc_id not in OFFICIAL_DOCUMENTS:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+    return {
+        "id": doc_id,
+        **OFFICIAL_DOCUMENTS[doc_id]
+    }
 
 # ============== HEALTH CHECK ==============
 

@@ -301,6 +301,32 @@ class TaricBackendTester:
                 else:
                     self.log_test_result("Compliance alerts format", False, "Not a list")
             
+            # NEW: Test documents have PDF fields (pdf_form, pdf_guide, online_portal)
+            if 'documents' in response:
+                documents = response['documents']
+                if isinstance(documents, list):
+                    self.log_test_result("TARIC documents format", True, f"Found {len(documents)} documents")
+                    
+                    # Check for PDF fields in documents
+                    docs_with_pdf_form = [d for d in documents if d.get('pdf_form')]
+                    docs_with_pdf_guide = [d for d in documents if d.get('pdf_guide')]
+                    docs_with_online_portal = [d for d in documents if d.get('online_portal')]
+                    
+                    self.log_test_result("TARIC docs PDF form fields", len(docs_with_pdf_form) > 0, 
+                                       f"{len(docs_with_pdf_form)} docs have PDF form links")
+                    self.log_test_result("TARIC docs PDF guide fields", len(docs_with_pdf_guide) > 0, 
+                                       f"{len(docs_with_pdf_guide)} docs have PDF guide links") 
+                    self.log_test_result("TARIC docs online portal fields", len(docs_with_online_portal) > 0, 
+                                       f"{len(docs_with_online_portal)} docs have online portal links")
+                    
+                    # Log first document with PDF fields for verification
+                    for doc in documents[:2]:  # Check first 2 documents
+                        if doc.get('pdf_form') or doc.get('pdf_guide') or doc.get('online_portal'):
+                            self.log_test_result(f"Doc '{doc.get('name', 'Unknown')}' PDF links", True, 
+                                               f"Form: {bool(doc.get('pdf_form'))}, Guide: {bool(doc.get('pdf_guide'))}, Portal: {bool(doc.get('online_portal'))}")
+                else:
+                    self.log_test_result("TARIC documents format", False, "Documents not a list")
+            
             return success, response.get('id')
         
         return success, None
@@ -508,6 +534,118 @@ class TaricBackendTester:
         
         return success
 
+    def test_documents_library(self):
+        """Test documents library endpoint - NEW FEATURE: Official PDFs Database"""
+        print("\n📚 TESTING DOCUMENTS LIBRARY")
+        
+        if not self.token:
+            self.log_test_result("Documents Library", False, "No authentication token")
+            return False
+        
+        success, response = self.run_test(
+            "Documents Library Endpoint",
+            "GET",
+            "/documents/library", 
+            200
+        )
+        
+        if success:
+            documents = response.get('documents', [])
+            categories = response.get('categories', {})
+            
+            # Check document count - should have 15 documents
+            if len(documents) >= 15:
+                self.log_test_result("Documents Library - Document Count", True, f"Found {len(documents)} documents (required: 15+)")
+            else:
+                self.log_test_result("Documents Library - Document Count", False, f"Only found {len(documents)} documents, expected 15+")
+            
+            # Check categories
+            if len(categories) > 0:
+                self.log_test_result("Documents Library - Categories", True, f"Found {len(categories)} categories")
+            else:
+                self.log_test_result("Documents Library - Categories", False, "No categories found")
+            
+            # Check for required document types
+            doc_types = set(doc.get('type') for doc in documents)
+            expected_types = {'cites', 'fitosanitario', 'aduanero', 'no_fitosanitario'}
+            
+            if expected_types.issubset(doc_types):
+                self.log_test_result("Documents Library - Required Types", True, f"All required types present: {doc_types}")
+            else:
+                missing = expected_types - doc_types
+                self.log_test_result("Documents Library - Required Types", False, f"Missing types: {missing}")
+            
+            # Check PDF fields presence
+            docs_with_pdf_form = [d for d in documents if d.get('pdf_form')]
+            docs_with_pdf_guide = [d for d in documents if d.get('pdf_guide')]
+            docs_with_online_portal = [d for d in documents if d.get('online_portal')]
+            
+            self.log_test_result("Documents Library - PDF Form Links", True, f"{len(docs_with_pdf_form)} docs have PDF form links")
+            self.log_test_result("Documents Library - PDF Guide Links", True, f"{len(docs_with_pdf_guide)} docs have PDF guide links")
+            self.log_test_result("Documents Library - Online Portal Links", True, f"{len(docs_with_online_portal)} docs have online portal links")
+            
+            # Check specific document sources
+            cites_docs = [d for d in documents if d.get('type') == 'cites']
+            dua_docs = [d for d in documents if 'dua' in d.get('name', '').lower()]
+            phyto_docs = [d for d in documents if d.get('type') == 'fitosanitario']
+            
+            # Verify CITES documents have cites.comercio.gob.es
+            cites_correct_source = any('cites.comercio.gob.es' in d.get('pdf_form', '') for d in cites_docs)
+            self.log_test_result("Documents Library - CITES PDF Source", cites_correct_source, 
+                               "CITES docs have correct source" if cites_correct_source else "CITES docs missing correct source")
+            
+            # Verify DUA documents have comercio.gob.es
+            dua_correct_source = any('comercio.gob.es' in d.get('pdf_form', '') for d in dua_docs)
+            self.log_test_result("Documents Library - DUA PDF Source", dua_correct_source,
+                               "DUA docs have correct source" if dua_correct_source else "DUA docs missing correct source")
+            
+            # Verify Fitosanitario documents have mapa.gob.es
+            phyto_correct_source = any('mapa.gob.es' in d.get('pdf_guide', '') for d in phyto_docs)
+            self.log_test_result("Documents Library - Fitosanitario PDF Source", phyto_correct_source,
+                               "Fitosanitario docs have MAPA source" if phyto_correct_source else "Fitosanitario docs missing MAPA source")
+                
+            return success
+        else:
+            self.log_test_result("Documents Library Endpoint", False, "Failed to fetch documents")
+            return False
+    
+    def test_document_detail(self):
+        """Test individual document details endpoint"""
+        print("\n📄 TESTING DOCUMENT DETAILS")
+        
+        if not self.token:
+            self.log_test_result("Document Details", False, "No authentication token")
+            return False
+        
+        # Test with known document IDs from the database
+        test_doc_ids = ['cites_import_permit', 'dua_import', 'phytosanitary_certificate']
+        
+        for doc_id in test_doc_ids:
+            success, response = self.run_test(
+                f"Document Detail - {doc_id}",
+                "GET",
+                f"/documents/{doc_id}",
+                200
+            )
+            
+            if success:
+                self.log_test_result(f"Document {doc_id} retrieved", True, f"Successfully retrieved document details")
+                
+                # Check for PDF fields
+                has_pdf_form = bool(response.get('pdf_form'))
+                has_pdf_guide = bool(response.get('pdf_guide'))
+                has_online_portal = bool(response.get('online_portal'))
+                
+                if has_pdf_form or has_pdf_guide or has_online_portal:
+                    self.log_test_result(f"Document {doc_id} PDF links", True, 
+                                       f"Form: {has_pdf_form}, Guide: {has_pdf_guide}, Portal: {has_online_portal}")
+                else:
+                    self.log_test_result(f"Document {doc_id} PDF links", False, "No PDF links found")
+            else:
+                self.log_test_result(f"Document {doc_id} retrieval", False, f"Failed to retrieve document {doc_id}")
+                
+        return True
+
     def run_all_tests(self):
         """Run all backend tests including B2B features"""
         print(f"🚀 STARTING TARIC BACKEND TESTS (B2B Edition)")
@@ -538,7 +676,11 @@ class TaricBackendTester:
             # Test regulatory alerts
             self.test_regulatory_alerts()
             
-            # Test TARIC functionality with B2B features
+            # NEW: Test documents library functionality
+            self.test_documents_library()
+            self.test_document_detail()
+            
+            # Test TARIC functionality with B2B features and document PDFs
             search_success, result_id = self.test_taric_search()
             self.test_search_history()
             
