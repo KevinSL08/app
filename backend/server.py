@@ -193,13 +193,100 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Token inválido")
 
+# ============== AI CLARIFICATION CHECK ==============
+
+class ClarificationCheckRequest(BaseModel):
+    product_description: str
+
+class ClarificationCheckResponse(BaseModel):
+    needs_clarification: bool
+    clarification_questions: List[ClarificationQuestion] = []
+    enhanced_description: Optional[str] = None
+
+async def check_clarification_needed(product_description: str) -> dict:
+    """Pre-check if product description needs clarification before full classification"""
+    
+    system_message = """Eres un experto en clasificación arancelaria TARIC.
+
+Tu trabajo es analizar si una descripción de producto necesita información adicional para una clasificación precisa.
+
+REGLAS:
+1. Si la descripción es VAGA o AMBIGUA, genera preguntas de clarificación
+2. Si la descripción ya es ESPECÍFICA y DETALLADA, indica que NO necesita clarificación
+3. Máximo 3 preguntas, cada una con 3-5 opciones
+
+Ejemplos de descripciones que NECESITAN clarificación:
+- "camisas" → Falta: género, material, tipo de tejido
+- "zapatos" → Falta: tipo (deportivo/vestir), material, género  
+- "aceite" → Falta: tipo (oliva/girasol/motor), presentación
+- "cable" → Falta: tipo (eléctrico/datos/acero), uso
+
+Ejemplos de descripciones que NO necesitan clarificación:
+- "Aceite de oliva virgen extra en botella de vidrio de 500ml"
+- "Camisetas de algodón 100% para hombre talla M"
+- "Cable HDMI 2.1 de 2 metros para conexión de video"
+
+Responde SIEMPRE en JSON:
+{
+    "needs_clarification": true/false,
+    "clarification_questions": [
+        {"question": "¿...?", "options": ["Op1", "Op2", "Op3"], "impacts": "Afecta al código..."}
+    ],
+    "enhanced_description": "Si no necesita clarificación, devuelve la descripción mejorada o null"
+}"""
+
+    user_prompt = f"""Analiza si esta descripción de producto necesita clarificación para clasificación TARIC:
+
+PRODUCTO: {product_description}
+
+Si es ambigua, genera preguntas. Si es suficientemente específica, indica que no necesita clarificación."""
+
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"clarify-{uuid.uuid4()}",
+            system_message=system_message
+        ).with_model("openai", "gpt-5.2")
+        
+        user_message = UserMessage(text=user_prompt)
+        response = await chat.send_message(user_message)
+        
+        import json
+        import re
+        clean_response = response.strip()
+        
+        if "```json" in clean_response:
+            clean_response = clean_response.split("```json")[1].split("```")[0]
+        elif "```" in clean_response:
+            parts = clean_response.split("```")
+            if len(parts) > 1:
+                clean_response = parts[1]
+        
+        clean_response = clean_response.strip()
+        
+        try:
+            result = json.loads(clean_response)
+        except json.JSONDecodeError:
+            json_match = re.search(r'\{.*\}', clean_response, re.DOTALL)
+            if json_match:
+                result = json.loads(json_match.group())
+            else:
+                return {"needs_clarification": False, "clarification_questions": [], "enhanced_description": None}
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Clarification check error: {e}")
+        return {"needs_clarification": False, "clarification_questions": [], "enhanced_description": None}
+
 # ============== AI SEARCH FUNCTION ==============
 
 async def analyze_product_with_ai(
     product_description: str, 
     origin_country: str,
     destination_country: str = "ES",
-    trade_agreements: Optional[List[str]] = None
+    trade_agreements: Optional[List[str]] = None,
+    skip_clarification: bool = False
 ) -> dict:
     """Use GPT-5.2 to analyze product and suggest TARIC code with compliance checks"""
     
@@ -542,6 +629,27 @@ async def get_organization_stats(current_user: dict = Depends(get_current_user))
 
 # ============== TARIC ROUTES ==============
 
+@api_router.post("/taric/check-clarification", response_model=ClarificationCheckResponse)
+async def check_clarification(request: ClarificationCheckRequest, current_user: dict = Depends(get_current_user)):
+    """Pre-check if product description needs clarification before classification"""
+    
+    result = await check_clarification_needed(request.product_description)
+    
+    questions = []
+    if result.get("needs_clarification", False) and result.get("clarification_questions"):
+        for q in result.get("clarification_questions", []):
+            questions.append(ClarificationQuestion(
+                question=q.get("question", ""),
+                options=q.get("options", []),
+                impacts=q.get("impacts")
+            ))
+    
+    return ClarificationCheckResponse(
+        needs_clarification=result.get("needs_clarification", False),
+        clarification_questions=questions,
+        enhanced_description=result.get("enhanced_description")
+    )
+
 @api_router.post("/taric/search", response_model=TaricResult)
 async def search_taric(request: TaricSearchRequest, current_user: dict = Depends(get_current_user)):
     """Search TARIC code using AI analysis with compliance checks"""
@@ -556,7 +664,8 @@ async def search_taric(request: TaricSearchRequest, current_user: dict = Depends
         request.product_description, 
         request.origin_country,
         request.destination_country,
-        request.trade_agreements
+        request.trade_agreements,
+        skip_clarification=True  # Skip clarification in search since we have a separate endpoint
     )
     
     result_id = str(uuid.uuid4())
@@ -905,28 +1014,42 @@ async def analyze_image(request: ImageAnalysisRequest, current_user: dict = Depe
         # Extract and validate base64 data
         image_data = request.image_base64
         
+        if not image_data:
+            raise HTTPException(status_code=400, detail="No se proporcionó imagen")
+        
+        logger.info(f"Received image data length: {len(image_data)}")
+        
         # Remove data URL prefix if present (e.g., "data:image/jpeg;base64,")
         if image_data.startswith("data:"):
             # Extract the base64 part after the comma
-            match = re.match(r'data:image/[^;]+;base64,(.+)', image_data)
+            match = re.match(r'data:image/[^;]+;base64,(.+)', image_data, re.DOTALL)
             if match:
                 image_data = match.group(1)
+                logger.info("Extracted base64 from data URL prefix")
             else:
                 # Try simple split
                 parts = image_data.split(",")
                 if len(parts) > 1:
                     image_data = parts[1]
+                    logger.info("Extracted base64 using comma split")
+        
+        # Clean up any whitespace or newlines that might be in the base64
+        image_data = image_data.strip().replace('\n', '').replace('\r', '').replace(' ', '')
         
         # Validate base64
         try:
             # Try to decode to verify it's valid base64
             decoded = base64.b64decode(image_data)
             if len(decoded) < 100:
-                raise ValueError("Image too small")
+                logger.error(f"Image too small: {len(decoded)} bytes")
+                raise HTTPException(status_code=400, detail="La imagen es demasiado pequeña o está corrupta")
             logger.info(f"Image validated: {len(decoded)} bytes")
+        except base64.binascii.Error as e:
+            logger.error(f"Invalid base64 encoding: {e}")
+            raise HTTPException(status_code=400, detail="Imagen con codificación inválida. Por favor intenta con otra imagen.")
         except Exception as e:
-            logger.error(f"Invalid base64 image: {e}")
-            raise HTTPException(status_code=400, detail="Imagen inválida. Por favor sube una imagen JPG, PNG o WebP válida.")
+            logger.error(f"Image validation error: {e}")
+            raise HTTPException(status_code=400, detail="Error al validar la imagen. Por favor intenta con otra imagen.")
         
         system_message = """Eres un experto en identificación de productos para clasificación arancelaria TARIC.
 
@@ -936,6 +1059,11 @@ Analiza la imagen y proporciona una descripción DETALLADA del producto incluyen
 - Características físicas visibles
 - Posible uso o función
 - Categoría general para clasificación
+
+IMPORTANTE:
+- Si la imagen muestra un producto claramente identificable, descríbelo con detalle
+- Si la imagen es borrosa, muy oscura o no muestra un producto claro, indica eso
+- Sé específico sobre materiales y características visibles
 
 Responde SIEMPRE en formato JSON válido:
 {
@@ -960,8 +1088,10 @@ Responde SIEMPRE en formato JSON válido:
             file_contents=[image_content]
         )
         
+        logger.info("Sending image to AI for analysis...")
         response = await chat.send_message(user_message)
-        logger.info(f"Image analysis response: {response[:200]}...")
+        logger.info(f"Image analysis response received, length: {len(response)}")
+        logger.info(f"Image analysis response preview: {response[:300]}...")
         
         # Parse response
         import json
@@ -971,20 +1101,34 @@ Responde SIEMPRE en formato JSON válido:
         if "```json" in clean_response:
             clean_response = clean_response.split("```json")[1].split("```")[0]
         elif "```" in clean_response:
-            clean_response = clean_response.split("```")[1].split("```")[0]
+            parts = clean_response.split("```")
+            for part in parts:
+                part = part.strip()
+                if part.startswith("{"):
+                    clean_response = part
+                    break
         
         clean_response = clean_response.strip()
         
         try:
             result = json.loads(clean_response)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as je:
+            logger.warning(f"JSON parse error: {je}, trying regex extraction")
             # Try to extract JSON from the response
-            json_match = re.search(r'\{[^{}]*\}', clean_response, re.DOTALL)
+            json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', clean_response, re.DOTALL)
             if json_match:
-                result = json.loads(json_match.group())
+                try:
+                    result = json.loads(json_match.group())
+                except:
+                    # If all parsing fails, create a result from the raw response
+                    result = {
+                        "product_description": clean_response[:500] if clean_response else "Producto identificado en la imagen",
+                        "components": [],
+                        "confidence": "media"
+                    }
             else:
                 result = {
-                    "product_description": clean_response,
+                    "product_description": clean_response[:500] if clean_response else "Producto identificado en la imagen",
                     "components": [],
                     "confidence": "media"
                 }
@@ -1000,8 +1144,10 @@ Responde SIEMPRE en formato JSON válido:
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Image analysis error: {e}")
-        raise HTTPException(status_code=500, detail=f"Error al analizar la imagen: {str(e)}")
+        logger.error(f"Image analysis error: {type(e).__name__}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error al analizar la imagen. Por favor intenta con otra imagen o describe el producto manualmente.")
 
 # ============== MARKET STUDY ==============
 

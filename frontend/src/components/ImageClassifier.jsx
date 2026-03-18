@@ -64,11 +64,17 @@ export const ImageClassifier = ({ onProductIdentified, onUseForClassification })
     
     try {
       // Convert image to base64
-      const base64 = await new Promise((resolve) => {
+      const base64 = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("Error al leer la imagen"));
         reader.readAsDataURL(image);
       });
+      
+      // Validate base64 result
+      if (!base64 || !base64.includes("base64,")) {
+        throw new Error("Error al procesar la imagen");
+      }
       
       const token = localStorage.getItem("token");
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/image/analyze`, {
@@ -80,18 +86,25 @@ export const ImageClassifier = ({ onProductIdentified, onUseForClassification })
         body: JSON.stringify({ image_base64: base64 })
       });
       
+      const data = await response.json();
+      
       if (!response.ok) {
-        throw new Error("Error al analizar la imagen");
+        throw new Error(data.detail || "Error al analizar la imagen");
       }
       
-      const result = await response.json();
-      setAnalysisResult(result);
+      // Validate response has expected data
+      if (!data.product_description) {
+        throw new Error("La respuesta no contiene descripción del producto");
+      }
+      
+      setAnalysisResult(data);
       
       if (onProductIdentified) {
-        onProductIdentified(result);
+        onProductIdentified(data);
       }
     } catch (err) {
-      setError(err.message || "Error al procesar la imagen");
+      console.error("Image analysis error:", err);
+      setError(err.message || "Error al procesar la imagen. Por favor intenta con otra imagen.");
     } finally {
       setAnalyzing(false);
     }

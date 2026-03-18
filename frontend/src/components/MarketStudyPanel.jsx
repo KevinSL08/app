@@ -44,6 +44,11 @@ export const MarketStudyPanel = ({
 
     try {
       const token = localStorage.getItem("token");
+      
+      // Create AbortController for timeout handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+      
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/market/study`, {
         method: "POST",
         headers: {
@@ -56,22 +61,35 @@ export const MarketStudyPanel = ({
           origin_country: originCountry,
           destination_country: destinationCountry,
           language: language
-        })
+        }),
+        signal: controller.signal
       });
 
+      clearTimeout(timeoutId);
+
+      const data = await response.json();
+
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || "Error al generar el estudio de mercado");
+        throw new Error(data.detail || "Error al generar el estudio de mercado");
       }
 
-      const result = await response.json();
-      setStudy(result);
+      // Validate response has expected data
+      if (!data.executive_summary && !data.pestel) {
+        throw new Error("El estudio de mercado no contiene datos válidos");
+      }
+
+      setStudy(data);
 
       if (onGenerateStudy) {
-        onGenerateStudy(result);
+        onGenerateStudy(data);
       }
     } catch (err) {
-      setError(err.message || "Error al procesar la solicitud");
+      console.error("Market study error:", err);
+      if (err.name === 'AbortError') {
+        setError("La generación del estudio tardó demasiado. Por favor intenta de nuevo.");
+      } else {
+        setError(err.message || "Error al procesar la solicitud");
+      }
     } finally {
       setGenerating(false);
     }

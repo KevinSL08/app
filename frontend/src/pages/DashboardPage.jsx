@@ -87,6 +87,11 @@ export default function DashboardPage() {
   const [inviting, setInviting] = useState(false);
   const [regulatoryAlerts, setRegulatoryAlerts] = useState([]);
   const [loadingAlerts, setLoadingAlerts] = useState(false);
+  
+  // New state for clarification flow
+  const [checkingClarification, setCheckingClarification] = useState(false);
+  const [pendingClarification, setPendingClarification] = useState(null);
+  const [clarificationAnswers, setClarificationAnswers] = useState({});
 
   // Group countries by region for better UX
   const countriesByRegion = getCountriesByRegion();
@@ -156,8 +161,8 @@ export default function DashboardPage() {
     }
   };
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
+  const handleSearch = async (e, skipClarification = false, clarifiedQuery = null) => {
+    if (e) e.preventDefault();
     
     // Validate required fields
     if (!originCountry) {
@@ -170,14 +175,43 @@ export default function DashboardPage() {
       return;
     }
     
-    if (!searchQuery.trim()) {
+    const queryToUse = clarifiedQuery || searchQuery;
+    
+    if (!queryToUse.trim()) {
       toast.error(t("messages.productRequired"));
       return;
     }
 
+    // Step 1: Check if clarification is needed (unless skipping)
+    if (!skipClarification && !clarifiedQuery) {
+      setCheckingClarification(true);
+      try {
+        const clarifyResponse = await axios.post(
+          `${API}/taric/check-clarification`,
+          { product_description: queryToUse },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        
+        if (clarifyResponse.data.needs_clarification && clarifyResponse.data.clarification_questions?.length > 0) {
+          // Store pending clarification and show questions
+          setPendingClarification({
+            questions: clarifyResponse.data.clarification_questions,
+            originalQuery: queryToUse
+          });
+          setCheckingClarification(false);
+          return; // Stop here, wait for user to answer questions
+        }
+      } catch (error) {
+        console.error("Clarification check failed, proceeding with search:", error);
+      }
+      setCheckingClarification(false);
+    }
+
+    // Step 2: Perform the actual search
     setSearching(true);
     setSearchResult(null);
     setTradeAgreements([]);
+    setPendingClarification(null);
     
     try {
       // Find applicable trade agreements
@@ -187,7 +221,7 @@ export default function DashboardPage() {
       const response = await axios.post(
         `${API}/taric/search`,
         {
-          product_description: searchQuery,
+          product_description: queryToUse,
           origin_country: originCountry,
           destination_country: destinationCountry,
           client_reference: clientReference || null,
@@ -206,6 +240,20 @@ export default function DashboardPage() {
     } finally {
       setSearching(false);
     }
+  };
+
+  // Handle clarification answers
+  const handleClarificationAnswer = (clarifiedDescription) => {
+    setSearchQuery(clarifiedDescription);
+    setPendingClarification(null);
+    // Trigger search with clarified description, skipping clarification check
+    handleSearch(null, true, clarifiedDescription);
+  };
+
+  const handleSkipClarification = () => {
+    setPendingClarification(null);
+    // Proceed with original search, skipping clarification
+    handleSearch(null, true, searchQuery);
   };
 
   const loadFromHistory = async (resultId) => {
@@ -545,10 +593,15 @@ export default function DashboardPage() {
                       <Button
                         type="submit"
                         className="btn-cyber w-full h-12"
-                        disabled={searching || !originCountry || !destinationCountry}
+                        disabled={searching || checkingClarification || !originCountry || !destinationCountry}
                         data-testid="search-submit"
                       >
-                        {searching ? (
+                        {checkingClarification ? (
+                          <>
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                            Verificando...
+                          </>
+                        ) : searching ? (
                           <>
                             <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                             {t("dashboard.analyzing")}
@@ -564,6 +617,16 @@ export default function DashboardPage() {
                   </div>
                 </form>
               </motion.div>
+
+              {/* Clarification Questions - Show BEFORE search results */}
+              {pendingClarification && (
+                <ClarificationQuestions
+                  questions={pendingClarification.questions}
+                  productDescription={pendingClarification.originalQuery}
+                  onAnswer={handleClarificationAnswer}
+                  onSkip={handleSkipClarification}
+                />
+              )}
 
               {/* Search Result */}
               {searchResult && (
@@ -604,26 +667,6 @@ export default function DashboardPage() {
                     originCountry={originCountry}
                     destinationCountry={destinationCountry}
                   />
-
-                  {/* Clarification Questions - Show if AI needs more info */}
-                  {searchResult.needs_clarification && searchResult.clarification_questions?.length > 0 && (
-                    <ClarificationQuestions
-                      questions={searchResult.clarification_questions}
-                      productDescription={searchQuery}
-                      onAnswer={(clarifiedDescription) => {
-                        setSearchQuery(clarifiedDescription);
-                        // Re-trigger search with clarified description
-                        setTimeout(() => {
-                          const form = document.querySelector('form');
-                          if (form) form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-                        }, 100);
-                      }}
-                      onSkip={() => {
-                        // User chose to skip clarification, proceed with current result
-                        toast.info("Resultado mostrado sin información adicional");
-                      }}
-                    />
-                  )}
 
                   {/* TARIC Code */}
                   <div className="cyber-card p-6">
