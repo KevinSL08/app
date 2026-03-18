@@ -542,6 +542,11 @@ async def search_taric(request: TaricSearchRequest, current_user: dict = Depends
     for d in ai_result.get("documents", []):
         doc_name = d.get("name", "").lower()
         
+        # Defensive parsing for 'required' field - AI sometimes returns non-boolean
+        required_val = d.get("required", False)
+        if isinstance(required_val, str):
+            required_val = required_val.lower() in ("true", "yes", "sí", "si", "1", "obligatorio")
+        
         # Try to match with official documents database
         pdf_form = None
         pdf_guide = None
@@ -568,7 +573,7 @@ async def search_taric(request: TaricSearchRequest, current_user: dict = Depends
         documents.append(DocumentRequirement(
             name=d.get("name", ""),
             type=d.get("type", "aduanero"),
-            required=d.get("required", False),
+            required=bool(required_val),
             description=d.get("description", ""),
             official_link=official_link,
             issuing_authority=issuing_authority,

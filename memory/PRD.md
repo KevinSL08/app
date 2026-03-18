@@ -1,98 +1,230 @@
 # TARIC AI - Product Requirements Document
 
-## Problem Statement
-Aplicación SaaS B2B para agencias de aduanas que permite consultar el TARIC con IA, calcular aranceles, gestionar documentación oficial con PDFs descargables, y alertas regulatorias en tiempo real.
+## Descripción Original del Proyecto
+Aplicación SaaS donde se pueda leer el TARIC y con inteligencia artificial se pueda colocar simplemente una palabra del TARIC de mi producto y se pueda sacar la nomenclatura arancelaria con sitios oficiales del TARIC español o de la Unión Europea. Adicional a eso, un portal donde le bote de una vez los aranceles, todos los tributos y los documentos que necesita fitosanitarios y no fitosanitarios para poder traer ese producto, todo en un solo lugar y sacado de sitios oficiales de España y de la Unión Europea.
 
-## Architecture
-- **Frontend**: React 19 + Tailwind CSS + Shadcn/UI + Framer Motion + jsPDF
-- **Backend**: FastAPI + MongoDB + emergentintegrations + Documents Database
-- **AI**: OpenAI GPT-5.2 via Emergent LLM Key
+---
 
-## Core Features Implemented
+## Estado Actual: MVP + Funcionalidades B2B Completadas
 
-### 1. Clasificación TARIC con IA (94% precisión)
-- Códigos TARIC 10 dígitos con desglose visual
-- Nivel de confianza de la IA
-- Explicación detallada de clasificación
+### ✅ Funcionalidades Implementadas
 
-### 2. Cálculo de Aranceles
-- Derechos de importación convencionales
-- IVA importación (21% España)
-- Aranceles preferenciales según acuerdos
-- Base legal de cada tributo
+#### 1. Core - Clasificación TARIC con IA (MVP)
+- [x] Búsqueda de productos con descripción en lenguaje natural
+- [x] Clasificación automática con código TARIC de 10 dígitos
+- [x] Análisis con GPT-5.2 via emergentintegrations
+- [x] Nivel de confianza de la IA
 
-### 3. Base de Datos de Documentos Oficiales (15 documentos)
-**CITES** (MITECO):
-- Permiso Importación/Exportación CITES
-- PDF: cites.comercio.gob.es
-- Guía: miteco.gob.es
+#### 2. Origen y Destino OBLIGATORIOS (NEW)
+- [x] Selector de país de origen obligatorio
+- [x] Selector de país de destino obligatorio
+- [x] Lista completa de TODOS los países del mundo (200+)
+- [x] Países organizados por región (UE, Europa, Norteamérica, Sudamérica, Asia, África, Oceanía)
+- [x] Banderas de países en los selectores
+- [x] Validación en frontend (botón deshabilitado sin origen/destino)
+- [x] Validación en backend (HTTP 400/422 si faltan)
 
-**Fitosanitarios** (MAPA):
-- Certificado Fitosanitario
-- Solicitud Inspección
-- PDF: mapa.gob.es
+#### 3. Tratados Comerciales (NEW)
+- [x] Base de datos de tratados comerciales UE con terceros países
+- [x] Detección automática de acuerdos aplicables entre origen y destino
+- [x] Panel de tratados comerciales en resultados
+- [x] Tasas preferenciales según tratado vigente
+- [x] Documentos requeridos para preferencia (EUR.1, declaración de origen, etc.)
+- [x] Enlaces a fuentes oficiales de cada acuerdo (ec.europa.eu)
+- [x] Tratados incluidos:
+  - UE-Chile, UE-México, CETA (Canadá), UE-Japón
+  - UE-Corea del Sur, UE-Singapur, UE-Vietnam
+  - UE-Reino Unido (TCA), UE-Suiza, EEE (Noruega, Islandia)
+  - Acuerdos Mediterráneos (Marruecos, Túnez, Egipto, Israel, Turquía)
+  - UE-Perú/Colombia/Ecuador, UE-Centroamérica
+  - SPG, SPG+, EBA (Países menos adelantados)
 
-**Aduaneros** (AEAT):
-- DUA Importación/Exportación
-- EUR.1 Origen Preferencial
-- Certificado Origen
-- T2L Estatuto Aduanero
-- PDF: agenciatributaria.gob.es, comercio.gob.es
+#### 4. Sistema de Internacionalización (i18n) (NEW)
+- [x] Selector de idioma en header
+- [x] 5 idiomas soportados: Español, English, Português, Français, Deutsch
+- [x] Traducciones completas para:
+  - Navegación
+  - Dashboard
+  - Resultados de búsqueda
+  - Panel de tratados
+  - Documentos
+  - Alertas
+  - Gestión de equipo
+  - Mensajes de error
+- [x] Persistencia de preferencia en localStorage
 
-**Sanitarios** (AESAN):
-- Certificado Sanitario Alimentos
-- Inscripción RGSEAA
-- Certificado Veterinario
-- PDF: aesan.gob.es
+#### 5. Aranceles y Tributos
+- [x] Desglose completo de aranceles (NMF, preferenciales)
+- [x] IVA de importación (21% España)
+- [x] Derechos anti-dumping cuando aplican
+- [x] Base legal de cada tributo
 
-**Otros**:
-- Declaración CE
-- Impuestos Especiales
-- Certificado Anti-Dumping
+#### 6. Documentación Requerida
+- [x] Lista de documentos obligatorios y opcionales
+- [x] Tipos: Fitosanitario, Sanitario, Aduanero, CITES
+- [x] Autoridad emisora
+- [x] Tiempo de tramitación
+- [x] Validez del documento
+- [x] Enlaces a portales de tramitación online
+- [x] ~~Enlaces a PDFs de formularios~~ (ELIMINADO por solicitud del usuario)
 
-### 4. Panel de Alertas Regulatorias (5 alertas)
-- Anti-dumping acero China
-- Restricciones fitosanitarias
-- Biodiésel Argentina
-- Sanciones comerciales
-- CITES actualización
+#### 7. Alertas de Compliance
+- [x] Detección de restricciones
+- [x] Alertas anti-dumping
+- [x] Sanciones comerciales
+- [x] Severidad: Alta, Media, Baja
+- [x] Referencia oficial
 
-### 5. Gestión de Equipos B2B
-- Roles: Admin, Operador, Consultor
-- Invitación de miembros
-- Estadísticas de organización
+#### 8. Fuentes Oficiales
+- [x] TARIC - Comisión Europea
+- [x] **Access2Markets** - Portal oficial UE (NEW)
+- [x] Agencia Tributaria (AEAT)
+- [x] EUR-Lex
+- [x] MAPA (Control Fitosanitario)
 
-### 6. Exportación PDF
-- Informes profesionales con logo
-- Incluye todos los datos de clasificación
+#### 9. Suite B2B
+- [x] Autenticación JWT
+- [x] Organizaciones
+- [x] Gestión de equipos (Admin, Operador, Consultor)
+- [x] Invitación de miembros
+- [x] Historial de clasificaciones
+- [x] Referencia de cliente (tracking B2B)
+- [x] Estadísticas de uso
 
-## Official Sources
-- TARIC UE (ec.europa.eu)
-- AEAT (agenciatributaria.es)
-- MAPA (mapa.gob.es)
-- MITECO (miteco.gob.es)
-- AESAN (aesan.gob.es)
-- EUR-Lex (eur-lex.europa.eu)
+#### 10. Panel de Alertas Regulatorias
+- [x] Notificaciones de cambios normativos
+- [x] Nuevos aranceles anti-dumping
+- [x] Actualizaciones TARIC
 
-## API Endpoints
-- POST /api/auth/register, /login
-- GET /api/auth/me
-- POST /api/taric/search
-- GET /api/taric/history, /result/{id}
-- GET /api/team/members, /stats
-- POST /api/team/invite
-- GET /api/documents/library
-- GET /api/documents/{doc_id}
-- GET /api/alerts/regulatory
+#### 11. UI/UX
+- [x] Diseño futurista oscuro (cyberpunk)
+- [x] Responsive design
+- [x] Animaciones con Framer Motion
+- [x] Componentes Shadcn/UI
+- [x] Toast notifications (Sonner)
 
-## Testing Results
-- Backend: 97.6% success
-- 15 documents with PDF links verified
-- CITES, DUA, Fitosanitario PDFs working
+---
 
-## Next Tasks
-1. Implement email service for team invites
-2. Password recovery flow
-3. Bulk product classification
-4. Scheduled regulatory alerts digest
-5. API access for Enterprise tier
+## ❌ Funcionalidades ELIMINADAS
+
+### Descarga de PDFs
+- Eliminados botones de "Descargar PDF" en DocumentChecklist
+- Eliminados enlaces directos a formularios PDF
+- Motivo: Los PDFs de fuentes oficiales cambian frecuentemente y generaban errores 404
+
+---
+
+## Stack Tecnológico
+
+### Backend
+- **Framework**: FastAPI
+- **Base de datos**: MongoDB
+- **Autenticación**: JWT
+- **IA**: OpenAI GPT-5.2 via emergentintegrations
+
+### Frontend
+- **Framework**: React 18
+- **Estilos**: Tailwind CSS
+- **Componentes**: Shadcn/UI
+- **Animaciones**: Framer Motion
+- **Routing**: react-router-dom
+- **HTTP Client**: Axios
+
+### Integraciones
+- **emergentintegrations**: Acceso a GPT-5.2 con Emergent LLM Key
+
+---
+
+## Estructura de Archivos Principal
+
+```
+/app/
+├── backend/
+│   ├── server.py                    # FastAPI app principal
+│   ├── documents_database.py        # Base de datos de documentos
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── ui/                  # Shadcn components
+│   │   │   ├── DocumentChecklist.jsx
+│   │   │   ├── DutyCalculatorCard.jsx
+│   │   │   ├── ComplianceAlerts.jsx
+│   │   │   ├── RegulatoryAlertsPanel.jsx
+│   │   │   ├── TradeAgreementsPanel.jsx  # NEW
+│   │   │   ├── LanguageSelector.jsx      # NEW
+│   │   │   └── TaricCodeDisplay.jsx
+│   │   ├── config/
+│   │   │   ├── countries.js              # NEW - Lista países
+│   │   │   ├── tradeAgreements.js        # NEW - Tratados comerciales
+│   │   │   └── i18n.js                   # NEW - Traducciones
+│   │   ├── contexts/
+│   │   │   └── LanguageContext.jsx       # NEW
+│   │   ├── pages/
+│   │   │   ├── LandingPage.jsx
+│   │   │   ├── LoginPage.jsx
+│   │   │   ├── RegisterPage.jsx
+│   │   │   ├── DashboardPage.jsx
+│   │   │   └── SearchResultPage.jsx
+│   │   └── App.js
+│   └── package.json
+└── memory/
+    └── PRD.md
+```
+
+---
+
+## Endpoints API Principales
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | /api/auth/register | Registro de usuario |
+| POST | /api/auth/login | Login (retorna JWT) |
+| POST | /api/taric/search | Búsqueda TARIC con IA (requiere origin_country, destination_country) |
+| GET | /api/taric/result/{id} | Obtener resultado por ID |
+| GET | /api/taric/history | Historial del usuario |
+| DELETE | /api/taric/history/{id} | Eliminar del historial |
+| GET | /api/organization/team | Miembros del equipo |
+| POST | /api/team/invite | Invitar miembro |
+| DELETE | /api/team/members/{id} | Eliminar miembro |
+| GET | /api/regulatory/alerts | Alertas regulatorias |
+| GET | /api/documents/library | Biblioteca de documentos |
+
+---
+
+## Tareas Pendientes
+
+### P1 - Alta Prioridad
+- [ ] Traducir labels de stats cards según idioma
+- [ ] Añadir más tratados comerciales (ej: UE-Nueva Zelanda)
+- [ ] Implementar filtros avanzados en historial
+
+### P2 - Media Prioridad
+- [ ] Notificaciones por email de alertas regulatorias
+- [ ] Generador automático de checklists pre-llenados
+- [ ] Dashboard con gráficos de uso mensual
+
+### P3 - Backlog
+- [ ] Integración con sistemas ERP
+- [ ] API pública para terceros
+- [ ] App móvil
+
+---
+
+## Credenciales de Prueba
+- **Email**: demo2024@test.com
+- **Password**: Test123!
+
+---
+
+## Última Actualización
+**Fecha**: 2025-12-18
+**Versión**: 2.0.0
+
+**Cambios recientes**:
+- Añadidos campos obligatorios origen/destino
+- Implementado sistema de tratados comerciales
+- Añadido selector de idioma (5 idiomas)
+- Eliminada funcionalidad de descarga PDF
+- Añadido Access2Markets a fuentes oficiales
+- Lista completa de países del mundo por regiones
