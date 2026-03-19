@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useLanguage } from "../contexts/LanguageContext";
+import { useAuth } from "../App";
 import { motion, AnimatePresence } from "framer-motion";
 import { jsPDF } from "jspdf";
 import axios from "axios";
@@ -33,6 +34,7 @@ export const MarketStudyPanel = ({
   onGenerateStudy
 }) => {
   const { t, language } = useLanguage();
+  const { token } = useAuth(); // Get token from context
   const [generating, setGenerating] = useState(false);
   const [study, setStudy] = useState(null);
   const [error, setError] = useState(null);
@@ -44,13 +46,17 @@ export const MarketStudyPanel = ({
       return;
     }
 
+    // Check token
+    if (!token) {
+      setError("Sesión expirada. Por favor recarga la página e inicia sesión de nuevo.");
+      return;
+    }
+
     setGenerating(true);
     setError(null);
 
     try {
-      const token = localStorage.getItem("taric_token");
-      
-      console.log("Generating market study for:", productDescription, originCountry, "->", destinationCountry);
+      console.log("Generating market study, token exists:", !!token);
       
       const response = await axios({
         method: 'POST',
@@ -66,29 +72,21 @@ export const MarketStudyPanel = ({
           destination_country: destinationCountry,
           language: language
         },
-        timeout: 180000, // 3 minutes
-        validateStatus: (status) => status < 500,
-        transformResponse: [(data) => {
-          try {
-            return typeof data === 'string' ? JSON.parse(data) : data;
-          } catch (e) {
-            console.error("JSON parse error:", e);
-            return { error: "Invalid JSON response" };
-          }
-        }]
+        timeout: 180000,
+        validateStatus: (status) => status < 500
       });
 
-      // Check for errors
+      console.log("Response status:", response.status);
+
+      if (response.status === 401) {
+        throw new Error("Sesión expirada. Por favor recarga la página e inicia sesión de nuevo.");
+      }
+
       if (response.status >= 400) {
         const errorMsg = response.data?.detail || response.data?.message || "Error del servidor";
         throw new Error(errorMsg);
       }
 
-      if (response.data?.error) {
-        throw new Error(response.data.error);
-      }
-
-      // Validate response has expected data
       if (!response.data?.executive_summary && !response.data?.pestel) {
         console.error("Invalid market study response:", response.data);
         throw new Error("El estudio no contiene datos válidos. Intenta de nuevo.");
@@ -106,12 +104,12 @@ export const MarketStudyPanel = ({
       
       let errorMessage = "Error al generar el estudio de mercado.";
       
-      if (err.code === 'ECONNABORTED' || err.message.includes('timeout')) {
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
         errorMessage = "La generación tardó demasiado. Intenta de nuevo.";
-      } else if (err.message.includes('Network Error') || err.message.includes('Failed to fetch')) {
+      } else if (err.message?.includes('Network Error')) {
         errorMessage = "Error de conexión. Verifica tu internet.";
-      } else if (err.response?.status === 401) {
-        errorMessage = "Sesión expirada. Por favor inicia sesión de nuevo.";
+      } else if (err.response?.status === 401 || err.message?.includes('Sesión expirada')) {
+        errorMessage = "Sesión expirada. Por favor recarga la página e inicia sesión de nuevo.";
       } else if (err.message) {
         errorMessage = err.message;
       }

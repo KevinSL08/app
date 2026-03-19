@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Camera, Upload, ImageIcon, Loader2, CheckCircle2, X, Sparkles, RefreshCw } from "lucide-react";
 import { Button } from "./ui/button";
 import { useLanguage } from "../contexts/LanguageContext";
+import { useAuth } from "../App";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 
@@ -9,6 +10,7 @@ const API = process.env.REACT_APP_BACKEND_URL;
 
 export const ImageClassifier = ({ onProductIdentified, onUseForClassification }) => {
   const { t } = useLanguage();
+  const { token } = useAuth(); // Get token from context
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -61,7 +63,7 @@ export const ImageClassifier = ({ onProductIdentified, onUseForClassification })
     setIsDragging(false);
   };
 
-  // Compress image using canvas to reduce size and ensure consistent format
+  // Compress image using canvas
   const compressImage = (file) => {
     return new Promise((resolve, reject) => {
       const canvas = document.createElement('canvas');
@@ -70,7 +72,7 @@ export const ImageClassifier = ({ onProductIdentified, onUseForClassification })
       
       const timeout = setTimeout(() => {
         reject(new Error("Timeout comprimiendo imagen"));
-      }, 10000);
+      }, 15000);
       
       img.onload = () => {
         clearTimeout(timeout);
@@ -79,7 +81,6 @@ export const ImageClassifier = ({ onProductIdentified, onUseForClassification })
         const maxWidth = 1024;
         const maxHeight = 1024;
         
-        // Scale down if needed
         if (width > maxWidth || height > maxHeight) {
           const ratio = Math.min(maxWidth / width, maxHeight / height);
           width = Math.round(width * ratio);
@@ -90,12 +91,8 @@ export const ImageClassifier = ({ onProductIdentified, onUseForClassification })
         canvas.height = height;
         ctx.drawImage(img, 0, 0, width, height);
         
-        // Get compressed base64 as JPEG
         const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
-        
-        // Cleanup
         URL.revokeObjectURL(img.src);
-        
         resolve(compressedBase64);
       };
       
@@ -112,17 +109,22 @@ export const ImageClassifier = ({ onProductIdentified, onUseForClassification })
   const analyzeImage = async () => {
     if (!image) return;
     
+    // Check token
+    if (!token) {
+      setError("Sesión expirada. Por favor recarga la página e inicia sesión de nuevo.");
+      return;
+    }
+    
     setAnalyzing(true);
     setError(null);
     
     try {
-      // Step 1: Compress the image
+      // Compress image
       let base64;
       try {
         base64 = await compressImage(image);
       } catch (compressError) {
         console.warn("Compression failed, using original:", compressError);
-        // Fallback to original
         base64 = await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result);
@@ -135,8 +137,7 @@ export const ImageClassifier = ({ onProductIdentified, onUseForClassification })
         throw new Error("Error procesando la imagen");
       }
       
-      // Step 2: Send to API using axios with specific config
-      const token = localStorage.getItem("taric_token");
+      console.log("Sending image to API, token exists:", !!token, "base64 length:", base64.length);
       
       const response = await axios({
         method: 'POST',
@@ -146,36 +147,26 @@ export const ImageClassifier = ({ onProductIdentified, onUseForClassification })
           'Authorization': `Bearer ${token}`
         },
         data: { image_base64: base64 },
-        timeout: 90000, // 90 seconds
-        validateStatus: (status) => status < 500, // Don't throw on 4xx
-        transformResponse: [(data) => {
-          // Parse JSON manually to handle errors
-          try {
-            return typeof data === 'string' ? JSON.parse(data) : data;
-          } catch (e) {
-            console.error("JSON parse error:", e);
-            return { error: "Invalid JSON response" };
-          }
-        }]
+        timeout: 90000,
+        validateStatus: (status) => status < 500
       });
       
-      // Check for errors
+      console.log("Response status:", response.status);
+      
+      if (response.status === 401) {
+        throw new Error("Sesión expirada. Por favor recarga la página e inicia sesión de nuevo.");
+      }
+      
       if (response.status >= 400) {
         const errorMsg = response.data?.detail || response.data?.message || "Error del servidor";
         throw new Error(errorMsg);
       }
       
-      if (response.data?.error) {
-        throw new Error(response.data.error);
-      }
-      
-      // Validate response
       if (!response.data?.product_description) {
         console.error("Invalid response:", response.data);
         throw new Error("La respuesta no contiene la descripción del producto");
       }
       
-      // Success!
       setAnalysisResult(response.data);
       setRetryCount(0);
       
@@ -188,12 +179,12 @@ export const ImageClassifier = ({ onProductIdentified, onUseForClassification })
       
       let errorMessage = "Error al analizar la imagen.";
       
-      if (err.code === 'ECONNABORTED' || err.message.includes('timeout')) {
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
         errorMessage = "La solicitud tardó demasiado. Intenta con una imagen más pequeña.";
-      } else if (err.message.includes('Network Error') || err.message.includes('Failed to fetch')) {
+      } else if (err.message?.includes('Network Error')) {
         errorMessage = "Error de conexión. Verifica tu internet.";
-      } else if (err.response?.status === 401) {
-        errorMessage = "Sesión expirada. Por favor inicia sesión de nuevo.";
+      } else if (err.response?.status === 401 || err.message?.includes('Sesión expirada')) {
+        errorMessage = "Sesión expirada. Por favor recarga la página e inicia sesión de nuevo.";
       } else if (err.message) {
         errorMessage = err.message;
       }
@@ -233,7 +224,6 @@ export const ImageClassifier = ({ onProductIdentified, onUseForClassification })
         {t("imageClassifier.description")}
       </p>
 
-      {/* Upload Area */}
       <AnimatePresence mode="wait">
         {!imagePreview ? (
           <motion.div
@@ -287,7 +277,6 @@ export const ImageClassifier = ({ onProductIdentified, onUseForClassification })
             exit={{ opacity: 0, scale: 0.95 }}
             className="space-y-4"
           >
-            {/* Image Preview */}
             <div className="relative">
               <img
                 src={imagePreview}
@@ -305,7 +294,6 @@ export const ImageClassifier = ({ onProductIdentified, onUseForClassification })
               </Button>
             </div>
 
-            {/* Analyze Button */}
             {!analysisResult && (
               <Button
                 type="button"
@@ -328,7 +316,6 @@ export const ImageClassifier = ({ onProductIdentified, onUseForClassification })
               </Button>
             )}
 
-            {/* Analysis Result */}
             {analysisResult && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -387,7 +374,6 @@ export const ImageClassifier = ({ onProductIdentified, onUseForClassification })
         )}
       </AnimatePresence>
 
-      {/* Error Message with Retry */}
       {error && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -395,7 +381,7 @@ export const ImageClassifier = ({ onProductIdentified, onUseForClassification })
           className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg"
         >
           <p className="text-red-400 text-sm mb-2">{error}</p>
-          {retryCount < 3 && (
+          {retryCount < 3 && !error.includes("Sesión expirada") && (
             <Button
               type="button"
               variant="outline"
