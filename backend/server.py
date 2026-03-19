@@ -994,6 +994,7 @@ async def get_document_detail(doc_id: str, current_user: dict = Depends(get_curr
 
 class ImageAnalysisRequest(BaseModel):
     image_base64: str
+    language: Optional[str] = "es"  # Default to Spanish
 
 class ImageAnalysisResult(BaseModel):
     product_description: str
@@ -1001,6 +1002,41 @@ class ImageAnalysisResult(BaseModel):
     suggested_category: Optional[str] = None
     confidence: str
     details: Optional[str] = None
+
+# Language names for AI prompts
+LANGUAGE_NAMES = {
+    "es": "español",
+    "en": "English",
+    "pt": "português",
+    "fr": "français",
+    "de": "Deutsch",
+    "it": "italiano",
+    "nl": "Nederlands",
+    "pl": "polski",
+    "ro": "română",
+    "el": "ελληνικά",
+    "cs": "čeština",
+    "hu": "magyar",
+    "sv": "svenska",
+    "da": "dansk",
+    "fi": "suomi",
+    "sk": "slovenčina",
+    "bg": "български",
+    "hr": "hrvatski",
+    "sl": "slovenščina",
+    "et": "eesti",
+    "lv": "latviešu",
+    "lt": "lietuvių",
+    "mt": "Malti",
+    "ga": "Gaeilge",
+    "ru": "русский",
+    "uk": "українська",
+    "tr": "Türkçe",
+    "ar": "العربية",
+    "zh": "中文",
+    "ja": "日本語",
+    "ko": "한국어",
+}
 
 @api_router.post("/image/analyze", response_model=ImageAnalysisResult)
 async def analyze_image(request: ImageAnalysisRequest, current_user: dict = Depends(get_current_user)):
@@ -1011,13 +1047,17 @@ async def analyze_image(request: ImageAnalysisRequest, current_user: dict = Depe
         import base64
         import re
         
+        # Get language name for the prompt
+        lang_code = request.language or "es"
+        lang_name = LANGUAGE_NAMES.get(lang_code, "español")
+        
         # Extract and validate base64 data
         image_data = request.image_base64
         
         if not image_data:
             raise HTTPException(status_code=400, detail="No se proporcionó imagen")
         
-        logger.info(f"Received image data length: {len(image_data)}")
+        logger.info(f"Received image data length: {len(image_data)}, language: {lang_code}")
         
         # Remove data URL prefix if present (e.g., "data:image/jpeg;base64,")
         if image_data.startswith("data:"):
@@ -1051,28 +1091,30 @@ async def analyze_image(request: ImageAnalysisRequest, current_user: dict = Depe
             logger.error(f"Image validation error: {e}")
             raise HTTPException(status_code=400, detail="Error al validar la imagen. Por favor intenta con otra imagen.")
         
-        system_message = """Eres un experto en identificación de productos para clasificación arancelaria TARIC.
+        system_message = f"""You are an expert in product identification for TARIC customs classification.
 
-Analiza la imagen y proporciona una descripción DETALLADA del producto incluyendo:
-- Qué es el producto exactamente
-- Material principal aparente (metal, plástico, tela, vidrio, etc.)
-- Características físicas visibles
-- Posible uso o función
-- Categoría general para clasificación
+Analyze the image and provide a DETAILED description of the product including:
+- What the product is exactly
+- Main apparent material (metal, plastic, fabric, glass, etc.)
+- Visible physical characteristics
+- Possible use or function
+- General category for classification
 
-IMPORTANTE:
-- Si la imagen muestra un producto claramente identificable, descríbelo con detalle
-- Si la imagen es borrosa, muy oscura o no muestra un producto claro, indica eso
-- Sé específico sobre materiales y características visibles
+IMPORTANT:
+- If the image shows a clearly identifiable product, describe it in detail
+- If the image is blurry, too dark, or doesn't show a clear product, indicate that
+- Be specific about materials and visible characteristics
 
-Responde SIEMPRE en formato JSON válido:
-{
-    "product_description": "Descripción completa y detallada del producto para clasificación arancelaria",
-    "components": ["material1", "componente2"],
-    "suggested_category": "Categoría para TARIC",
-    "confidence": "alta|media|baja",
-    "details": "Observaciones adicionales"
-}"""
+RESPOND ENTIRELY IN {lang_name.upper()} LANGUAGE.
+
+Always respond in valid JSON format:
+{{
+    "product_description": "Complete and detailed product description for customs classification IN {lang_name.upper()}",
+    "components": ["material1", "component2"],
+    "suggested_category": "Category for TARIC",
+    "confidence": "high|medium|low",
+    "details": "Additional observations IN {lang_name.upper()}"
+}}"""
 
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
@@ -1084,7 +1126,7 @@ Responde SIEMPRE en formato JSON válido:
         image_content = ImageContent(image_base64=image_data)
         
         user_message = UserMessage(
-            text="Analiza esta imagen y describe el producto para clasificación arancelaria TARIC. Responde en JSON.",
+            text=f"Analyze this image and describe the product for TARIC customs classification. Respond in {lang_name} language. Respond in JSON.",
             file_contents=[image_content]
         )
         
@@ -1196,77 +1238,74 @@ async def generate_market_study(request: MarketStudyRequest, current_user: dict 
     """Generate a professional market study with PESTEL analysis"""
     
     try:
-        lang_instructions = {
-            "es": "Responde completamente en español.",
-            "en": "Respond completely in English.",
-            "pt": "Responda completamente em português.",
-            "fr": "Répondez entièrement en français.",
-            "de": "Antworten Sie vollständig auf Deutsch."
-        }
+        # Get language name for the prompt
+        lang_name = LANGUAGE_NAMES.get(request.language, "español")
         
-        system_message = f"""Eres un analista de mercado profesional especializado en comercio internacional y estudios de viabilidad.
+        system_message = f"""You are a professional market analyst specialized in international trade and feasibility studies.
 
-{lang_instructions.get(request.language, lang_instructions['es'])}
+IMPORTANT: Respond ENTIRELY in {lang_name.upper()} language. All text, analysis, and recommendations must be in {lang_name.upper()}.
 
-Tu trabajo es generar estudios de mercado completos y profesionales que incluyan:
-1. Resumen ejecutivo conciso
-2. Análisis PESTEL detallado (Político, Económico, Social, Tecnológico, Ambiental, Legal)
-3. Estimación del tamaño del mercado
-4. Análisis de competencia
-5. Tendencias actuales del sector
-6. Oportunidades de mercado
-7. Amenazas y riesgos
-8. Recomendaciones estratégicas
+Your job is to generate complete and professional market studies that include:
+1. Concise executive summary
+2. Detailed PESTEL analysis (Political, Economic, Social, Technological, Environmental, Legal)
+3. Market size estimation
+4. Competitive analysis
+5. Current sector trends
+6. Market opportunities
+7. Threats and risks
+8. Strategic recommendations
 
-Responde SIEMPRE en formato JSON con esta estructura:
+ALWAYS respond in JSON format with this structure:
 {{
-    "product_name": "Nombre corto del producto",
-    "executive_summary": "Resumen ejecutivo de 2-3 párrafos sobre el potencial del mercado",
+    "product_name": "Short product name",
+    "executive_summary": "Executive summary of 2-3 paragraphs about market potential",
     "pestel": {{
-        "political": "Análisis de factores políticos que afectan la importación/exportación de este producto entre los países",
-        "economic": "Análisis económico: aranceles, tipo de cambio, demanda, poder adquisitivo",
-        "social": "Factores sociales: tendencias de consumo, preferencias del mercado objetivo",
-        "technological": "Aspectos tecnológicos del sector y su evolución",
-        "environmental": "Regulaciones ambientales, sostenibilidad, huella de carbono",
-        "legal": "Marco legal, certificaciones requeridas, normativas de importación"
+        "political": "Analysis of political factors affecting import/export",
+        "economic": "Economic analysis: tariffs, exchange rate, demand, purchasing power",
+        "social": "Social factors: consumption trends, target market preferences",
+        "technological": "Technological aspects of the sector and its evolution",
+        "environmental": "Environmental regulations, sustainability, carbon footprint",
+        "legal": "Legal framework, required certifications, import regulations"
     }},
     "market_size": {{
-        "description": "Descripción del tamaño y estructura del mercado",
-        "value": "€X millones/billones (estimación)",
+        "description": "Description of market size and structure",
+        "value": "€X million/billion (estimate)",
         "growth_rate": "X% CAGR"
     }},
     "competitors": [
-        {{"name": "Competidor 1", "description": "Breve descripción", "market_share": "X%"}},
-        {{"name": "Competidor 2", "description": "Breve descripción", "market_share": "X%"}}
+        {{"name": "Competitor 1", "description": "Brief description", "market_share": "X%"}},
+        {{"name": "Competitor 2", "description": "Brief description", "market_share": "X%"}}
     ],
     "trends": [
-        "Tendencia 1 del mercado",
-        "Tendencia 2 del mercado"
+        "Market trend 1",
+        "Market trend 2"
     ],
     "opportunities": [
-        "Oportunidad 1",
-        "Oportunidad 2"
+        "Opportunity 1",
+        "Opportunity 2"
     ],
     "threats": [
-        "Amenaza 1",
-        "Amenaza 2"
+        "Threat 1",
+        "Threat 2"
     ],
     "recommendations": [
-        "Recomendación estratégica 1",
-        "Recomendación estratégica 2"
+        "Strategic recommendation 1",
+        "Strategic recommendation 2"
     ]
 }}
 
-Sé específico y proporciona datos realistas basados en conocimiento de mercado actual."""
+Remember: ALL content must be written in {lang_name.upper()} language."""
 
-        user_prompt = f"""Genera un estudio de mercado profesional para el siguiente producto y ruta comercial:
+        user_prompt = f"""Generate a professional market study for the following product and trade route.
+Respond in {lang_name} language.
 
-PRODUCTO: {request.product_description}
-{f"CÓDIGO TARIC: {request.taric_code}" if request.taric_code else ""}
-PAÍS DE ORIGEN: {request.origin_country}
-PAÍS DE DESTINO: {request.destination_country}
+PRODUCT: {request.product_description}
+{f"TARIC CODE: {request.taric_code}" if request.taric_code else ""}
+ORIGIN COUNTRY: {request.origin_country}
+DESTINATION COUNTRY: {request.destination_country}
 
-Por favor proporciona un análisis completo incluyendo PESTEL, tamaño de mercado, competencia, tendencias, oportunidades, amenazas y recomendaciones estratégicas."""
+Please provide a complete analysis including PESTEL, market size, competition, trends, opportunities, threats and strategic recommendations.
+All content must be in {lang_name} language."""
 
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,

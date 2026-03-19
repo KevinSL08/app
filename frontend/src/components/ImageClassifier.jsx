@@ -9,8 +9,8 @@ import axios from "axios";
 const API = process.env.REACT_APP_BACKEND_URL;
 
 export const ImageClassifier = ({ onProductIdentified, onUseForClassification }) => {
-  const { t } = useLanguage();
-  const { token } = useAuth(); // Get token from context
+  const { t, language } = useLanguage(); // Get current language
+  const { token } = useAuth();
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -146,7 +146,10 @@ export const ImageClassifier = ({ onProductIdentified, onUseForClassification })
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        data: { image_base64: base64 },
+        data: { 
+          image_base64: base64,
+          language: language // Send selected language
+        },
         timeout: 90000,
         validateStatus: (status) => status < 500
       });

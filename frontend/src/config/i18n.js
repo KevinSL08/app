@@ -2,11 +2,48 @@
 // Supports multiple languages for LATAM and global expansion
 
 export const SUPPORTED_LANGUAGES = [
-  { code: "es", name: "Español", flag: "🇪🇸" },
-  { code: "en", name: "English", flag: "🇬🇧" },
-  { code: "pt", name: "Português", flag: "🇧🇷" },
-  { code: "fr", name: "Français", flag: "🇫🇷" },
-  { code: "de", name: "Deutsch", flag: "🇩🇪" },
+  // Major European Languages
+  { code: "es", name: "Español", flag: "🇪🇸", region: "Europe" },
+  { code: "en", name: "English", flag: "🇬🇧", region: "Europe" },
+  { code: "pt", name: "Português", flag: "🇵🇹", region: "Europe" },
+  { code: "fr", name: "Français", flag: "🇫🇷", region: "Europe" },
+  { code: "de", name: "Deutsch", flag: "🇩🇪", region: "Europe" },
+  { code: "it", name: "Italiano", flag: "🇮🇹", region: "Europe" },
+  { code: "nl", name: "Nederlands", flag: "🇳🇱", region: "Europe" },
+  { code: "pl", name: "Polski", flag: "🇵🇱", region: "Europe" },
+  { code: "ro", name: "Română", flag: "🇷🇴", region: "Europe" },
+  { code: "el", name: "Ελληνικά", flag: "🇬🇷", region: "Europe" },
+  { code: "cs", name: "Čeština", flag: "🇨🇿", region: "Europe" },
+  { code: "hu", name: "Magyar", flag: "🇭🇺", region: "Europe" },
+  { code: "sv", name: "Svenska", flag: "🇸🇪", region: "Europe" },
+  { code: "da", name: "Dansk", flag: "🇩🇰", region: "Europe" },
+  { code: "fi", name: "Suomi", flag: "🇫🇮", region: "Europe" },
+  { code: "sk", name: "Slovenčina", flag: "🇸🇰", region: "Europe" },
+  { code: "bg", name: "Български", flag: "🇧🇬", region: "Europe" },
+  { code: "hr", name: "Hrvatski", flag: "🇭🇷", region: "Europe" },
+  { code: "sl", name: "Slovenščina", flag: "🇸🇮", region: "Europe" },
+  { code: "et", name: "Eesti", flag: "🇪🇪", region: "Europe" },
+  { code: "lv", name: "Latviešu", flag: "🇱🇻", region: "Europe" },
+  { code: "lt", name: "Lietuvių", flag: "🇱🇹", region: "Europe" },
+  { code: "mt", name: "Malti", flag: "🇲🇹", region: "Europe" },
+  { code: "ga", name: "Gaeilge", flag: "🇮🇪", region: "Europe" },
+  // Eastern European & Eurasian
+  { code: "ru", name: "Русский", flag: "🇷🇺", region: "Eurasia" },
+  { code: "uk", name: "Українська", flag: "🇺🇦", region: "Europe" },
+  { code: "tr", name: "Türkçe", flag: "🇹🇷", region: "Eurasia" },
+  { code: "sr", name: "Српски", flag: "🇷🇸", region: "Europe" },
+  { code: "no", name: "Norsk", flag: "🇳🇴", region: "Europe" },
+  { code: "is", name: "Íslenska", flag: "🇮🇸", region: "Europe" },
+  // Other Major Languages
+  { code: "ar", name: "العربية", flag: "🇸🇦", region: "Middle East" },
+  { code: "zh", name: "中文", flag: "🇨🇳", region: "Asia" },
+  { code: "ja", name: "日本語", flag: "🇯🇵", region: "Asia" },
+  { code: "ko", name: "한국어", flag: "🇰🇷", region: "Asia" },
+  { code: "hi", name: "हिन्दी", flag: "🇮🇳", region: "Asia" },
+  { code: "vi", name: "Tiếng Việt", flag: "🇻🇳", region: "Asia" },
+  { code: "th", name: "ไทย", flag: "🇹🇭", region: "Asia" },
+  { code: "id", name: "Bahasa Indonesia", flag: "🇮🇩", region: "Asia" },
+  { code: "ms", name: "Bahasa Melayu", flag: "🇲🇾", region: "Asia" },
 ];
 
 // Translation strings for the application
