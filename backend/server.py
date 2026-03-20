@@ -1,5 +1,6 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -1459,6 +1460,62 @@ async def root():
 @api_router.get("/health")
 async def health():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+# ============== DOCUMENTOS PARA DESCARGAR ==============
+
+DOWNLOADABLE_FILES = {
+    "pitch_deck_pdf": {
+        "path": "/app/TaricAI_PitchDeck_Inversores.pdf",
+        "filename": "TaricAI_PitchDeck_Inversores.pdf",
+        "media_type": "application/pdf"
+    },
+    "pitch_deck_docx": {
+        "path": "/app/TaricAI_PitchDeck_Inversores.docx",
+        "filename": "TaricAI_PitchDeck_Inversores.docx",
+        "media_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    },
+    "plan_financiero": {
+        "path": "/app/TaricAI_Plan_Financiero_Profesional.md",
+        "filename": "TaricAI_Plan_Financiero_Profesional.md",
+        "media_type": "text/markdown"
+    },
+    "resumen_inversores": {
+        "path": "/app/TaricAI_Resumen_Financiero_Inversores.txt",
+        "filename": "TaricAI_Resumen_Financiero_Inversores.txt",
+        "media_type": "text/plain"
+    }
+}
+
+@api_router.get("/documents/list")
+async def list_downloadable_documents():
+    """Lista todos los documentos disponibles para descargar"""
+    documents = []
+    for key, info in DOWNLOADABLE_FILES.items():
+        if os.path.exists(info["path"]):
+            file_size = os.path.getsize(info["path"])
+            documents.append({
+                "id": key,
+                "filename": info["filename"],
+                "size_bytes": file_size,
+                "size_kb": round(file_size / 1024, 2)
+            })
+    return {"documents": documents}
+
+@api_router.get("/documents/download/{doc_id}")
+async def download_document(doc_id: str):
+    """Descarga un documento específico"""
+    if doc_id not in DOWNLOADABLE_FILES:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+    
+    file_info = DOWNLOADABLE_FILES[doc_id]
+    if not os.path.exists(file_info["path"]):
+        raise HTTPException(status_code=404, detail="Archivo no disponible")
+    
+    return FileResponse(
+        path=file_info["path"],
+        filename=file_info["filename"],
+        media_type=file_info["media_type"]
+    )
 
 # Include router and middleware
 app.include_router(api_router)
