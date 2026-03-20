@@ -1483,12 +1483,17 @@ DOWNLOADABLE_FILES = {
         "path": "/app/TaricAI_Resumen_Financiero_Inversores.txt",
         "filename": "TaricAI_Resumen_Financiero_Inversores.txt",
         "media_type": "text/plain"
+    },
+    "analisis_costos": {
+        "path": "/app/TaricAI_Analisis_Costos_Operativos.md",
+        "filename": "TaricAI_Analisis_Costos_Operativos.md",
+        "media_type": "text/markdown"
     }
 }
 
-@api_router.get("/documents/list")
+@app.get("/api/documents/list")
 async def list_downloadable_documents():
-    """Lista todos los documentos disponibles para descargar"""
+    """Lista todos los documentos disponibles para descargar (público)"""
     documents = []
     for key, info in DOWNLOADABLE_FILES.items():
         if os.path.exists(info["path"]):
@@ -1501,9 +1506,9 @@ async def list_downloadable_documents():
             })
     return {"documents": documents}
 
-@api_router.get("/documents/download/{doc_id}")
+@app.get("/api/documents/download/{doc_id}")
 async def download_document(doc_id: str):
-    """Descarga un documento específico"""
+    """Descarga un documento específico (público)"""
     if doc_id not in DOWNLOADABLE_FILES:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
     
