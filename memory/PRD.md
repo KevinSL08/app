@@ -69,9 +69,9 @@ Crear una aplicación SaaS donde se pueda leer el TARIC y con inteligencia artif
 - Fuentes oficiales en cada respuesta
 - Soporte multi-idioma
 
-#### 5.4 Mapa Mundial Interactivo ✅ NEW
+#### 5.4 Mapa Mundial Interactivo ✅ COMPLETED
 - Mapa SVG interactivo con 65+ países
-- Colores por región (Europa, América, Asia, África, Oceanía)
+- Colores por región (Europa azul, América verde, Asia naranja, África púrpura, Oceanía rosa)
 - Click en país para ver información comercial detallada
 - Panel lateral con:
   - Autoridad aduanera y enlace oficial
@@ -84,11 +84,34 @@ Crear una aplicación SaaS donde se pueda leer el TARIC y con inteligencia artif
 - Controles de zoom y navegación
 - Leyenda de regiones
 
-#### 5.5 Landing Page Profesional
+#### 5.5 Simulador de Costos de Importación ✅ NEW
+- Wizard de 3 pasos: Mercancía → Transporte → Resultados
+- Calcula automáticamente:
+  - Valor CIF (FOB + Flete + Seguro)
+  - Aranceles según código HS y origen
+  - IVA/VAT del país de destino
+  - Otros costos (agente aduanal, almacenaje, documentación)
+  - Costo total de importación
+  - Precio unitario final
+- Detecta tratados comerciales aplicables
+- Muestra documentos requeridos
+- Fuentes oficiales de cada país
+
+#### 5.6 Landing Page Profesional ✅ UPDATED
 - Enfoque en comercio internacional global
 - Estadísticas: 65+ países, 10+ tratados, 21K+ códigos
 - Fuentes oficiales: TARIC UE, CBP USA, DIAN, SAT, GACC, WTO
 - Mensaje dirigido a agencias de aduanas, importadores y exportadores de todos los tamaños
+
+#### 5.7 Tratados Comerciales Expandidos ✅ NEW
+- 25+ tratados comerciales:
+  - EU Single Market, USMCA, RCEP, CPTPP, AfCFTA
+  - MERCOSUR, Pacific Alliance, CAN (Comunidad Andina)
+  - ASEAN, GCC, EFTA, COMESA, ECOWAS, EAC, SACU, SADC
+  - EU-Colombia/Peru/Ecuador, US-Colombia TPA
+  - EU-Japan EPA, EU-Canada CETA, EU-UK TCA
+  - China-ASEAN FTA, India-ASEAN FTA
+  - UK-Australia FTA, Australia-China FTA
 
 ---
 
@@ -133,12 +156,13 @@ Crear una aplicación SaaS donde se pueda leer el TARIC y con inteligencia artif
 ---
 
 ## Key Files
-- `/app/backend/server.py` - Backend principal
-- `/app/backend/customs_database.py` - Base de datos de 65 países
+- `/app/backend/server.py` - Backend principal (endpoints de clasificación, chat, simulador de costos)
+- `/app/backend/customs_database.py` - Base de datos de 65 países y 25+ tratados comerciales
 - `/app/frontend/src/pages/DashboardPage.jsx` - Dashboard principal
 - `/app/frontend/src/pages/InternationalChatPage.jsx` - Chat conversacional
 - `/app/frontend/src/pages/LandingPage.jsx` - Landing page profesional
-- `/app/frontend/src/components/WorldTradeMap.jsx` - Mapa mundial interactivo (NEW)
+- `/app/frontend/src/components/WorldTradeMap.jsx` - Mapa mundial interactivo
+- `/app/frontend/src/components/ImportCostSimulator.jsx` - Simulador de costos de importación (NEW)
 - `/app/frontend/src/components/ImageClassifier.jsx` - Clasificación por imagen
 - `/app/frontend/src/components/MarketStudyPanel.jsx` - Estudios de mercado
 

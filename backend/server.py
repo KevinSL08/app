@@ -15,7 +15,7 @@ import jwt
 import bcrypt
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from documents_database import OFFICIAL_DOCUMENTS, DOCUMENT_CATEGORIES
-from customs_database import WORLDWIDE_CUSTOMS_DATABASE, TRADE_AGREEMENTS_INFO, GLOBAL_RESOURCES
+from customs_database import WORLDWIDE_CUSTOMS_DATABASE, TRADE_AGREEMENTS_INFO, GLOBAL_RESOURCES, TYPICAL_TARIFFS
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -192,6 +192,30 @@ class CountryTradeInfo(BaseModel):
     origin_country: str
     destination_country: str
     language: str = "es"
+
+# Simulador de Costos de Importación Models
+class ImportCostRequest(BaseModel):
+    hs_code: str
+    product_description: str
+    origin_country: str
+    destination_country: str
+    fob_value: float  # Valor FOB en USD
+    currency: str = "USD"
+    weight_kg: float
+    quantity: int = 1
+    unit: str = "unidades"  # unidades, kg, litros, etc.
+    incoterm: str = "FOB"  # FOB, CIF, EXW, etc.
+    freight_cost: Optional[float] = None  # Si se conoce
+    insurance_cost: Optional[float] = None  # Si se conoce
+    language: str = "es"
+
+class ImportCostResponse(BaseModel):
+    summary: dict
+    breakdown: dict
+    documents_required: List[str]
+    warnings: List[str]
+    sources: List[dict]
+    ai_analysis: str
 
 # ============== AUTH HELPERS ==============
 
@@ -1831,12 +1855,278 @@ async def list_trade_agreements():
         agreements.append({
             "key": key,
             "name": info.get("name", key),
+            "name_es": info.get("name_es", info.get("name", key)),
             "type": info.get("type", "FTA"),
             "members": info.get("members", []),
             "tariff_elimination": info.get("tariff_elimination", ""),
             "website": info.get("website", "")
         })
     return {"agreements": agreements}
+
+# ============== SIMULADOR DE COSTOS DE IMPORTACIÓN ==============
+
+@api_router.post("/import-cost/calculate")
+async def calculate_import_costs(request: ImportCostRequest, user: dict = Depends(get_current_user)):
+    """Calcula los costos totales de importación incluyendo aranceles, impuestos y otros cargos"""
+    try:
+        origin_info = get_country_info(request.origin_country)
+        dest_info = get_country_info(request.destination_country)
+        trade_agreements = get_trade_agreements_between(request.origin_country, request.destination_country)
+        
+        if not dest_info:
+            raise HTTPException(status_code=404, detail=f"País de destino no encontrado: {request.destination_country}")
+        
+        # Construir contexto para IA
+        country_context = build_country_context(request.origin_country, request.destination_country, request.language)
+        
+        # Sistema de prompt para el cálculo
+        system_prompt = f"""Eres un experto en comercio internacional y cálculo de costos de importación. 
+Debes calcular los costos totales de importación de manera precisa.
+
+DATOS DE LA OPERACIÓN:
+- Código HS: {request.hs_code}
+- Producto: {request.product_description}
+- País de origen: {origin_info.get('name', request.origin_country) if origin_info else request.origin_country}
+- País de destino: {dest_info.get('name', request.destination_country)}
+- Valor FOB: ${request.fob_value:,.2f} {request.currency}
+- Peso: {request.weight_kg} kg
+- Cantidad: {request.quantity} {request.unit}
+- Incoterm: {request.incoterm}
+- Flete: {'$' + str(request.freight_cost) if request.freight_cost else 'Por calcular (estimar 10-15% del FOB)'}
+- Seguro: {'$' + str(request.insurance_cost) if request.insurance_cost else 'Por calcular (estimar 0.5-1% del CIF)'}
+
+{country_context}
+
+TRATADOS COMERCIALES APLICABLES:
+{chr(10).join([f"- {a['name']}: {a.get('tariff_elimination', 'Variable')}" for a in trade_agreements]) if trade_agreements else "No se encontraron tratados bilaterales directos. Aplica arancel NMF (Nación Más Favorecida)."}
+
+INFORMACIÓN FISCAL DEL DESTINO:
+- IVA/VAT: {dest_info.get('vat_rate', 'N/A')}%
+- Moneda: {dest_info.get('currency', 'N/A')}
+
+INSTRUCCIONES:
+1. Calcula el valor CIF (Cost, Insurance, Freight) si no se proporciona
+2. Determina el arancel aplicable según el código HS y origen
+3. Calcula el IVA/impuestos sobre la base imponible (CIF + Arancel)
+4. Estima otros costos (agente aduanal, almacenaje, etc.)
+5. Proporciona un desglose detallado y el costo total
+
+FORMATO DE RESPUESTA (JSON):
+{{
+  "valor_fob": {request.fob_value},
+  "flete_estimado": <valor>,
+  "seguro_estimado": <valor>,
+  "valor_cif": <valor>,
+  "arancel_porcentaje": <porcentaje>,
+  "arancel_monto": <valor>,
+  "base_imponible_iva": <valor>,
+  "iva_porcentaje": {dest_info.get('vat_rate', 0)},
+  "iva_monto": <valor>,
+  "otros_costos": {{
+    "agente_aduanal": <valor>,
+    "almacenaje_estimado": <valor>,
+    "documentacion": <valor>
+  }},
+  "total_impuestos": <valor>,
+  "costo_total_importacion": <valor>,
+  "precio_unitario_final": <valor>,
+  "notas": ["nota1", "nota2"],
+  "fuentes": ["fuente1", "fuente2"]
+}}
+
+Responde SOLO con el JSON válido, sin explicaciones adicionales.
+"""
+        
+        # Llamar a la IA para calcular
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"import-cost-{uuid.uuid4()}",
+            system_message=system_prompt
+        ).with_model("openai", "gpt-5.2")
+        
+        user_prompt = f"""Calcula los costos de importación para:
+- {request.product_description} (HS: {request.hs_code})
+- De: {origin_info.get('name', request.origin_country) if origin_info else request.origin_country}
+- A: {dest_info.get('name', request.destination_country)}
+- Valor FOB: ${request.fob_value:,.2f}
+- Peso: {request.weight_kg} kg
+
+Proporciona el JSON con todos los cálculos."""
+        
+        ai_response = await chat.send_message(UserMessage(text=user_prompt))
+        response_text = ai_response if isinstance(ai_response, str) else str(ai_response)
+        
+        # Intentar parsear el JSON de la respuesta
+        import json
+        import re
+        
+        # Extraer JSON de la respuesta
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            try:
+                cost_breakdown = json.loads(json_match.group())
+            except json.JSONDecodeError:
+                # Si falla el parsing, crear estructura básica
+                cost_breakdown = {
+                    "valor_fob": request.fob_value,
+                    "error": "No se pudo calcular automáticamente",
+                    "raw_response": response_text[:500]
+                }
+        else:
+            cost_breakdown = {
+                "valor_fob": request.fob_value,
+                "error": "No se pudo calcular automáticamente",
+                "raw_response": response_text[:500]
+            }
+        
+        # Documentos requeridos según el país de destino
+        documents = dest_info.get('import_requirements', []) if dest_info else []
+        
+        # Advertencias
+        warnings = []
+        if not trade_agreements:
+            warnings.append(f"No hay tratado de libre comercio entre {request.origin_country} y {request.destination_country}. Se aplica arancel NMF.")
+        if dest_info and dest_info.get('special_notes'):
+            warnings.append(dest_info['special_notes'])
+        
+        # Fuentes
+        sources = []
+        if dest_info:
+            sources.append({
+                "name": f"Aduanas {dest_info.get('name', request.destination_country)}",
+                "url": dest_info.get('customs_website', '')
+            })
+            if dest_info.get('tariff_database'):
+                sources.append({
+                    "name": "Base de datos arancelaria",
+                    "url": dest_info.get('tariff_database')
+                })
+        sources.append({
+            "name": "WTO Tariff Database",
+            "url": "https://ttd.wto.org/"
+        })
+        sources.append({
+            "name": "ITC Market Access Map",
+            "url": "https://www.macmap.org/"
+        })
+        
+        return {
+            "summary": {
+                "origin": origin_info.get('name', request.origin_country) if origin_info else request.origin_country,
+                "destination": dest_info.get('name', request.destination_country),
+                "hs_code": request.hs_code,
+                "product": request.product_description,
+                "has_fta": len(trade_agreements) > 0,
+                "trade_agreements": [a['name'] for a in trade_agreements]
+            },
+            "breakdown": cost_breakdown,
+            "documents_required": documents,
+            "warnings": warnings,
+            "sources": sources,
+            "ai_analysis": response_text
+        }
+        
+    except Exception as e:
+        logger.error(f"Error en cálculo de costos: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error calculando costos: {str(e)}")
+
+@api_router.post("/import-cost/questions")
+async def get_import_cost_questions(
+    hs_code: str,
+    product_description: str,
+    origin_country: str,
+    destination_country: str,
+    user: dict = Depends(get_current_user)
+):
+    """Obtiene las preguntas necesarias para calcular los costos de importación"""
+    
+    dest_info = get_country_info(destination_country)
+    
+    questions = [
+        {
+            "id": "fob_value",
+            "question": "¿Cuál es el valor FOB de la mercancía?",
+            "type": "number",
+            "required": True,
+            "unit": "USD",
+            "hint": "Valor de la mercancía en el puerto de origen, sin incluir flete ni seguro"
+        },
+        {
+            "id": "weight_kg",
+            "question": "¿Cuál es el peso total de la mercancía?",
+            "type": "number",
+            "required": True,
+            "unit": "kg",
+            "hint": "Peso bruto incluyendo embalaje"
+        },
+        {
+            "id": "quantity",
+            "question": "¿Cuál es la cantidad total?",
+            "type": "number",
+            "required": True,
+            "hint": "Número de unidades, bultos o contenedores"
+        },
+        {
+            "id": "unit",
+            "question": "¿Cuál es la unidad de medida?",
+            "type": "select",
+            "required": True,
+            "options": ["unidades", "kg", "litros", "metros", "pares", "docenas", "cajas", "contenedores"],
+            "default": "unidades"
+        },
+        {
+            "id": "incoterm",
+            "question": "¿Qué Incoterm aplica a la operación?",
+            "type": "select",
+            "required": True,
+            "options": ["EXW", "FOB", "FCA", "CFR", "CIF", "CIP", "DAP", "DDP"],
+            "default": "FOB",
+            "hint": "El Incoterm determina quién paga el flete y el seguro"
+        },
+        {
+            "id": "freight_cost",
+            "question": "¿Conoces el costo del flete internacional?",
+            "type": "number",
+            "required": False,
+            "unit": "USD",
+            "hint": "Si no lo conoces, lo estimaremos (dejar vacío)"
+        },
+        {
+            "id": "insurance_cost",
+            "question": "¿Conoces el costo del seguro de transporte?",
+            "type": "number",
+            "required": False,
+            "unit": "USD",
+            "hint": "Si no lo conoces, lo estimaremos (dejar vacío)"
+        }
+    ]
+    
+    # Añadir preguntas específicas según el tipo de producto
+    if hs_code.startswith("18") or hs_code.startswith("09"):  # Cacao o café
+        questions.append({
+            "id": "is_organic",
+            "question": "¿El producto tiene certificación orgánica?",
+            "type": "boolean",
+            "required": False,
+            "hint": "Puede afectar requisitos de documentación"
+        })
+        questions.append({
+            "id": "has_phytosanitary",
+            "question": "¿Ya tienes el certificado fitosanitario del país de origen?",
+            "type": "boolean",
+            "required": False,
+            "hint": "Obligatorio para productos vegetales"
+        })
+    
+    return {
+        "questions": questions,
+        "destination_info": {
+            "country": dest_info.get('name', destination_country) if dest_info else destination_country,
+            "vat_rate": dest_info.get('vat_rate', 'N/A') if dest_info else 'N/A',
+            "currency": dest_info.get('currency', 'N/A') if dest_info else 'N/A',
+            "customs_authority": dest_info.get('customs_authority', '') if dest_info else ''
+        }
+    }
 
 # ============== DOCUMENTOS PARA DESCARGAR ==============
 

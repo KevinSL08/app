@@ -64,9 +64,10 @@ import CountrySearchSelect from "../components/CountrySearchSelect";
 import ClarificationQuestions from "../components/ClarificationQuestions";
 import InternationalChatPage from "./InternationalChatPage";
 import WorldTradeMap from "../components/WorldTradeMap";
+import ImportCostSimulator from "../components/ImportCostSimulator";
 import { COUNTRIES, getCountriesByRegion, REGION_ORDER, getCountryByCode } from "../config/countries";
 import { findApplicableAgreements } from "../config/tradeAgreements";
-import { MessageSquare, Map } from "lucide-react";
+import { MessageSquare, Map, Calculator } from "lucide-react";
 
 export default function DashboardPage() {
   const { user, token, logout } = useAuth();
@@ -95,15 +96,18 @@ export default function DashboardPage() {
   const [checkingClarification, setCheckingClarification] = useState(false);
   const [pendingClarification, setPendingClarification] = useState(null);
   const [clarificationAnswers, setClarificationAnswers] = useState({});
+  
+  // State for import cost simulator
+  const [showCostSimulator, setShowCostSimulator] = useState(false);
 
   // Group countries by region for better UX
   const countriesByRegion = getCountriesByRegion();
 
   const examples = [
-    "Aceite de oliva virgen extra en botella de vidrio",
-    "Camisetas de algodón 100% para hombre",
-    "Tornillos de acero inoxidable M8",
-    "Vino tinto Rioja reserva 2019"
+    "Cacao en grano crudo de Venezuela",
+    "Café verde arábica de Colombia",
+    "Textiles de algodón de China",
+    "Maquinaria industrial de Alemania"
   ];
 
   useEffect(() => {
@@ -805,7 +809,39 @@ export default function DashboardPage() {
                     taricCode={searchResult.taric_code}
                     originCountry={originCountry}
                     destinationCountry={destinationCountry}
+                    token={token}
                   />
+                  
+                  {/* Import Cost Simulator Button */}
+                  <div className="mt-6">
+                    <Button
+                      onClick={() => setShowCostSimulator(true)}
+                      className="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white py-4 text-lg"
+                      data-testid="open-cost-simulator"
+                    >
+                      <Calculator className="w-5 h-5 mr-2" />
+                      Calcular Costos de Importación
+                    </Button>
+                    <p className="text-xs text-gray-500 text-center mt-2">
+                      Simula aranceles, IVA y costos totales para tu operación
+                    </p>
+                  </div>
+                  
+                  {/* Import Cost Simulator Modal */}
+                  {showCostSimulator && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                      <div className="max-h-[90vh] overflow-y-auto">
+                        <ImportCostSimulator
+                          token={token}
+                          hsCode={searchResult.taric_code}
+                          productDescription={searchResult.product_description}
+                          originCountry={originCountry}
+                          destinationCountry={destinationCountry}
+                          onClose={() => setShowCostSimulator(false)}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
               )}
             </div>

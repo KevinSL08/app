@@ -1577,7 +1577,8 @@ TRADE_AGREEMENTS_INFO = {
         "website": "https://ec.europa.eu/growth/single-market_en"
     },
     "USMCA": {
-        "name": "United States-Mexico-Canada Agreement",
+        "name": "United States-Mexico-Canada Agreement (T-MEC)",
+        "name_es": "Tratado entre México, Estados Unidos y Canadá",
         "members": ["US", "MX", "CA"],
         "type": "Free Trade Agreement",
         "tariff_elimination": "99%+",
@@ -1585,6 +1586,7 @@ TRADE_AGREEMENTS_INFO = {
     },
     "RCEP": {
         "name": "Regional Comprehensive Economic Partnership",
+        "name_es": "Asociación Económica Integral Regional",
         "members": ["AU", "BN", "KH", "CN", "ID", "JP", "KR", "LA", "MY", "MM", "NZ", "PH", "SG", "TH", "VN"],
         "type": "Free Trade Agreement",
         "tariff_elimination": "90%+",
@@ -1592,6 +1594,7 @@ TRADE_AGREEMENTS_INFO = {
     },
     "CPTPP": {
         "name": "Comprehensive and Progressive Agreement for Trans-Pacific Partnership",
+        "name_es": "Tratado Integral y Progresista de Asociación Transpacífico",
         "members": ["AU", "BN", "CA", "CL", "JP", "MY", "MX", "NZ", "PE", "SG", "VN", "GB"],
         "type": "Free Trade Agreement",
         "tariff_elimination": "95%+",
@@ -1599,7 +1602,9 @@ TRADE_AGREEMENTS_INFO = {
     },
     "AfCFTA": {
         "name": "African Continental Free Trade Area",
-        "members": ["All African Union members (54 countries)"],
+        "name_es": "Área de Libre Comercio Continental Africana",
+        "members": ["ZA", "NG", "EG", "MA", "KE", "GH"],
+        "all_members": "54 países de la Unión Africana",
         "type": "Free Trade Agreement",
         "tariff_elimination": "90% (progressive)",
         "website": "https://au-afcfta.org/"
@@ -1609,23 +1614,38 @@ TRADE_AGREEMENTS_INFO = {
         "members": ["AR", "BR", "PY", "UY"],
         "associates": ["BO", "CL", "CO", "EC", "GY", "PE", "SR"],
         "type": "Customs Union",
+        "tariff_elimination": "100% intra-bloque",
         "website": "https://www.mercosur.int/"
     },
     "Pacific Alliance": {
         "name": "Alianza del Pacífico",
         "members": ["CL", "CO", "MX", "PE"],
+        "observers": ["CR", "PA", "EC"],
         "type": "Free Trade Agreement",
         "tariff_elimination": "92%",
         "website": "https://alianzapacifico.net/"
     },
+    "CAN": {
+        "name": "Comunidad Andina de Naciones",
+        "name_en": "Andean Community",
+        "members": ["CO", "PE", "EC", "BO"],
+        "former_members": ["VE"],
+        "type": "Free Trade Area",
+        "tariff_elimination": "100% intra-bloque",
+        "website": "https://www.comunidadandina.org/",
+        "notes": "Venezuela se retiró en 2006. Libre comercio entre miembros activos."
+    },
     "ASEAN": {
         "name": "Association of Southeast Asian Nations",
+        "name_es": "Asociación de Naciones del Sudeste Asiático",
         "members": ["BN", "KH", "ID", "LA", "MY", "MM", "PH", "SG", "TH", "VN"],
         "type": "Free Trade Area",
+        "tariff_elimination": "96% (AFTA)",
         "website": "https://asean.org/"
     },
     "GCC": {
         "name": "Gulf Cooperation Council Customs Union",
+        "name_es": "Consejo de Cooperación del Golfo",
         "members": ["AE", "BH", "KW", "OM", "QA", "SA"],
         "type": "Customs Union",
         "common_tariff": "5%",
@@ -1633,9 +1653,124 @@ TRADE_AGREEMENTS_INFO = {
     },
     "EFTA": {
         "name": "European Free Trade Association",
+        "name_es": "Asociación Europea de Libre Comercio",
         "members": ["CH", "IS", "LI", "NO"],
         "type": "Free Trade Association",
         "website": "https://www.efta.int/"
+    },
+    "EU-Colombia-Peru-Ecuador": {
+        "name": "EU-Colombia/Peru/Ecuador Trade Agreement",
+        "name_es": "Acuerdo Comercial UE-Colombia/Perú/Ecuador",
+        "members": ["CO", "PE", "EC"],
+        "with": ["EU countries"],
+        "type": "Free Trade Agreement",
+        "tariff_elimination": "99%+ industrial goods",
+        "website": "https://trade.ec.europa.eu/access-to-markets/es/content/acuerdo-comercial-ue-colombia-peru-ecuador"
+    },
+    "US-Colombia TPA": {
+        "name": "US-Colombia Trade Promotion Agreement",
+        "name_es": "TLC Estados Unidos - Colombia",
+        "members": ["US", "CO"],
+        "type": "Free Trade Agreement",
+        "since": 2012,
+        "website": "https://ustr.gov/trade-agreements/free-trade-agreements/colombia-tpa"
+    },
+    "EU-Mexico": {
+        "name": "EU-Mexico Global Agreement",
+        "members": ["MX"],
+        "with": ["EU countries"],
+        "type": "Free Trade Agreement",
+        "website": "https://policy.trade.ec.europa.eu/eu-trade-relationships-country-and-region/countries-and-regions/mexico_en"
+    },
+    "EU-Japan EPA": {
+        "name": "EU-Japan Economic Partnership Agreement",
+        "members": ["JP"],
+        "with": ["EU countries"],
+        "type": "Economic Partnership Agreement",
+        "since": 2019,
+        "tariff_elimination": "97%",
+        "website": "https://trade.ec.europa.eu/access-to-markets/en/content/eu-japan-economic-partnership-agreement"
+    },
+    "EU-Canada CETA": {
+        "name": "Comprehensive Economic and Trade Agreement",
+        "members": ["CA"],
+        "with": ["EU countries"],
+        "type": "Free Trade Agreement",
+        "since": 2017,
+        "website": "https://policy.trade.ec.europa.eu/eu-trade-relationships-country-and-region/countries-and-regions/canada_en"
+    },
+    "EU-UK TCA": {
+        "name": "EU-UK Trade and Cooperation Agreement",
+        "members": ["GB"],
+        "with": ["EU countries"],
+        "type": "Free Trade Agreement",
+        "since": 2021,
+        "tariff_elimination": "Zero tariffs, zero quotas (with rules of origin)",
+        "website": "https://ec.europa.eu/info/strategy/relations-non-eu-countries/relations-united-kingdom/eu-uk-trade-and-cooperation-agreement_en"
+    },
+    "China-ASEAN FTA": {
+        "name": "China-ASEAN Free Trade Agreement (CAFTA)",
+        "members": ["CN"],
+        "with": ["BN", "KH", "ID", "LA", "MY", "MM", "PH", "SG", "TH", "VN"],
+        "type": "Free Trade Agreement",
+        "since": 2010,
+        "website": "http://fta.mofcom.gov.cn/"
+    },
+    "India-ASEAN FTA": {
+        "name": "ASEAN-India Free Trade Agreement (AIFTA)",
+        "members": ["IN"],
+        "with": ["BN", "KH", "ID", "LA", "MY", "MM", "PH", "SG", "TH", "VN"],
+        "type": "Free Trade Agreement",
+        "since": 2010
+    },
+    "Australia-China FTA": {
+        "name": "China-Australia Free Trade Agreement (ChAFTA)",
+        "members": ["AU", "CN"],
+        "type": "Free Trade Agreement",
+        "since": 2015
+    },
+    "UK-Australia FTA": {
+        "name": "UK-Australia Free Trade Agreement",
+        "members": ["GB", "AU"],
+        "type": "Free Trade Agreement",
+        "since": 2023
+    },
+    "SACU": {
+        "name": "Southern African Customs Union",
+        "members": ["ZA", "BW", "LS", "NA", "SZ"],
+        "type": "Customs Union",
+        "website": "https://www.sacu.int/"
+    },
+    "SADC": {
+        "name": "Southern African Development Community",
+        "members": ["ZA", "BW", "LS", "NA", "SZ", "MZ", "ZW", "ZM", "MW", "TZ", "AO", "CD", "MG", "MU", "SC", "KM"],
+        "type": "Free Trade Area",
+        "website": "https://www.sadc.int/"
+    },
+    "ECOWAS": {
+        "name": "Economic Community of West African States",
+        "name_es": "Comunidad Económica de Estados de África Occidental",
+        "members": ["NG", "GH", "SN", "CI", "ML", "BF", "NE", "BJ", "TG", "GW", "LR", "SL", "GM", "CV"],
+        "type": "Economic Community",
+        "website": "https://www.ecowas.int/"
+    },
+    "EAC": {
+        "name": "East African Community",
+        "members": ["KE", "UG", "TZ", "RW", "BI", "SS", "CD"],
+        "type": "Customs Union",
+        "website": "https://www.eac.int/"
+    },
+    "COMESA": {
+        "name": "Common Market for Eastern and Southern Africa",
+        "members": ["KE", "EG", "ET", "UG", "ZM", "ZW", "RW", "BI", "ER", "DJ", "SD", "LY", "TN", "CD", "MG", "MU", "SC", "KM", "MW", "SO", "SD", "EG"],
+        "type": "Free Trade Area",
+        "website": "https://www.comesa.int/"
+    },
+    "GAFTA": {
+        "name": "Greater Arab Free Trade Area",
+        "name_es": "Gran Zona Árabe de Libre Comercio",
+        "members": ["AE", "SA", "QA", "KW", "BH", "OM", "EG", "JO", "LB", "SY", "IQ", "LY", "TN", "MA", "SD", "SO", "PA", "YE"],
+        "type": "Free Trade Area"
     }
 }
 
@@ -1643,33 +1778,92 @@ TRADE_AGREEMENTS_INFO = {
 GLOBAL_RESOURCES = {
     "WTO": {
         "name": "World Trade Organization",
+        "name_es": "Organización Mundial del Comercio",
         "website": "https://www.wto.org/",
-        "tariff_database": "https://tao.wto.org/",
-        "rta_database": "https://rtais.wto.org/"
+        "tariff_database": "https://ttd.wto.org/",
+        "rta_database": "https://rtais.wto.org/",
+        "market_access": "https://stats.wto.org/dashboard/marketaccess_en.html",
+        "tariff_profiles": "https://www.wto.org/english/res_e/statis_e/statis_e.htm"
     },
     "WCO": {
         "name": "World Customs Organization",
+        "name_es": "Organización Mundial de Aduanas",
         "website": "http://www.wcoomd.org/",
         "hs_nomenclature": "http://www.wcoomd.org/en/topics/nomenclature.aspx"
     },
     "IPPC": {
         "name": "International Plant Protection Convention",
+        "name_es": "Convención Internacional de Protección Fitosanitaria",
         "website": "https://www.ippc.int/",
         "phytosanitary_portal": "https://www.ippc.int/en/countries/all/"
     },
     "CODEX": {
         "name": "Codex Alimentarius",
+        "name_es": "Codex Alimentarius (Normas Alimentarias)",
         "website": "https://www.fao.org/fao-who-codexalimentarius/",
         "standards": "https://www.fao.org/fao-who-codexalimentarius/codex-texts/list-standards/"
     },
     "ITC": {
         "name": "International Trade Centre",
+        "name_es": "Centro de Comercio Internacional",
         "website": "https://www.intracen.org/",
-        "market_access": "https://www.macmap.org/"
+        "market_access": "https://www.macmap.org/",
+        "trade_map": "https://www.trademap.org/"
     },
     "UNCTAD": {
         "name": "UN Conference on Trade and Development",
+        "name_es": "Conferencia de las Naciones Unidas sobre Comercio y Desarrollo",
         "website": "https://unctad.org/",
-        "trains_database": "https://trainsonline.unctad.org/"
+        "trains_database": "https://trainsonline.unctad.org/",
+        "world_tariff_profiles": "https://unctad.org/publication/world-tariff-profiles-2025"
+    },
+    "FAO": {
+        "name": "Food and Agriculture Organization",
+        "name_es": "Organización de las Naciones Unidas para la Alimentación y la Agricultura",
+        "website": "https://www.fao.org/",
+        "trade_portal": "https://www.fao.org/markets-and-trade/"
+    },
+    "OIE": {
+        "name": "World Organisation for Animal Health (WOAH)",
+        "name_es": "Organización Mundial de Sanidad Animal",
+        "website": "https://www.woah.org/",
+        "standards": "https://www.woah.org/en/what-we-do/standards/"
+    }
+}
+
+# Aranceles típicos por producto (referencias generales)
+TYPICAL_TARIFFS = {
+    "cacao": {
+        "hs_chapter": "18",
+        "hs_heading": "1801",
+        "description": "Cacao en grano, entero o partido, crudo o tostado",
+        "typical_mfn_rates": {
+            "EU": "0%",
+            "US": "0%",
+            "CO": "5-15%",
+            "MX": "10-20%",
+            "CN": "8%",
+            "JP": "0%"
+        }
+    },
+    "coffee": {
+        "hs_chapter": "09",
+        "hs_heading": "0901",
+        "description": "Café, incluso tostado o descafeinado",
+        "typical_mfn_rates": {
+            "EU": "0-7.5%",
+            "US": "0%",
+            "CO": "5%",
+            "JP": "0%"
+        }
+    },
+    "textiles": {
+        "hs_chapters": ["50-63"],
+        "description": "Textiles y confecciones",
+        "typical_mfn_rates": {
+            "EU": "8-12%",
+            "US": "10-32%",
+            "CN": "10-25%"
+        }
     }
 }
