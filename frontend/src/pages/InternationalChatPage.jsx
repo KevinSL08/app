@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 import { 
   Send, Bot, User, Globe, ExternalLink, MessageSquare, Trash2, 
   Loader2, Info, ChevronRight, Package, FileText, Scale, 
@@ -332,8 +333,25 @@ const ChatMessage = ({ message, isUser, onOptionSelect, onClarificationSelect })
               Necesito más información
             </div>
           )}
-          <div className="whitespace-pre-wrap text-sm leading-relaxed">
-            {message.content}
+          <div className="text-sm leading-relaxed prose prose-invert prose-sm max-w-none
+            prose-p:my-2 prose-p:leading-relaxed
+            prose-strong:text-cyan-300 prose-strong:font-semibold
+            prose-em:text-gray-300
+            prose-ul:my-2 prose-ul:pl-4
+            prose-ol:my-2 prose-ol:pl-4
+            prose-li:my-0.5
+            prose-headings:text-gray-100 prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-2
+            prose-h1:text-lg prose-h2:text-base prose-h3:text-sm
+            prose-code:bg-slate-700 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-cyan-300 prose-code:text-xs
+            prose-pre:bg-slate-900 prose-pre:border prose-pre:border-slate-700 prose-pre:rounded-lg
+            prose-a:text-cyan-400 prose-a:no-underline hover:prose-a:underline
+            prose-blockquote:border-l-cyan-500 prose-blockquote:bg-slate-800/50 prose-blockquote:py-1 prose-blockquote:px-3 prose-blockquote:rounded-r
+          ">
+            {isUser ? (
+              message.content
+            ) : (
+              <ReactMarkdown>{message.content}</ReactMarkdown>
+            )}
           </div>
         </div>
         
