@@ -1324,77 +1324,132 @@ class MarketStudyResult(BaseModel):
 
 @api_router.post("/market/study", response_model=MarketStudyResult)
 async def generate_market_study(request: MarketStudyRequest, current_user: dict = Depends(get_current_user)):
-    """Generate a professional market study with PESTEL analysis"""
+    """Generate a professional market study with PESTEL analysis - Enhanced with official trade data sources"""
     
     try:
         # Get language name for the prompt
         lang_name = LANGUAGE_NAMES.get(request.language, "español")
         
-        system_message = f"""You are a professional market analyst specialized in international trade and feasibility studies.
+        # Build trade context from official sources
+        trade_agreements = get_trade_agreements_between(request.origin_country, request.destination_country)
+        origin_info = get_country_info(request.origin_country)
+        dest_info = get_country_info(request.destination_country)
+        
+        trade_context = ""
+        if trade_agreements:
+            trade_context = "ACUERDOS COMERCIALES VIGENTES:\n"
+            for agreement in trade_agreements:
+                trade_context += f"- {agreement['name']} ({agreement['type']}): Eliminación arancelaria {agreement.get('tariff_elimination', 'variable')}\n"
+        
+        if origin_info:
+            trade_context += f"\nFUENTES OFICIALES PAÍS ORIGEN ({origin_info.get('name', request.origin_country)}):\n"
+            trade_context += f"- Aduanas: {origin_info.get('customs_website', 'N/A')}\n"
+            trade_context += f"- Fitosanitario: {origin_info.get('phytosanitary_website', 'N/A')}\n"
+        
+        if dest_info:
+            trade_context += f"\nFUENTES OFICIALES PAÍS DESTINO ({dest_info.get('name', request.destination_country)}):\n"
+            trade_context += f"- Aduanas: {dest_info.get('customs_website', 'N/A')}\n"
+            trade_context += f"- IVA estándar: {dest_info.get('vat_rate', 'N/A')}\n"
+        
+        system_message = f"""Eres un analista de mercado profesional de nivel consultor senior, especializado en comercio internacional y estudios de viabilidad de exportación/importación.
 
-IMPORTANT: Respond ENTIRELY in {lang_name.upper()} language. All text, analysis, and recommendations must be in {lang_name.upper()}.
+IDIOMA: Responde EXCLUSIVAMENTE en {lang_name.upper()}.
 
-Your job is to generate complete and professional market studies that include:
-1. Concise executive summary
-2. Detailed PESTEL analysis (Political, Economic, Social, Technological, Environmental, Legal)
-3. Market size estimation
-4. Competitive analysis
-5. Current sector trends
-6. Market opportunities
-7. Threats and risks
-8. Strategic recommendations
+## TU ROL
+Generas estudios de mercado de ALTA CALIDAD usando datos de fuentes oficiales de comercio internacional:
 
-ALWAYS respond in JSON format with this structure:
+### FUENTES DE DATOS OFICIALES QUE DEBES REFERENCIAR:
+1. **UN Comtrade** (comtrade.un.org): Estadísticas de comercio bilateral, volúmenes de importación/exportación
+2. **Trade Map** (trademap.org): Análisis de flujos comerciales por producto y país
+3. **DataComex** (datacomex.comercio.es): Estadísticas de comercio exterior de España y UE
+4. **ICEX** (icex.es): Informes de mercado, tendencias y oportunidades de exportación
+5. **World Bank** (data.worldbank.org): Indicadores económicos, facilidad para hacer negocios
+6. **WTO** (wto.org): Aranceles MFN, barreras comerciales, disputas
+7. **Access2Markets** (trade.ec.europa.eu/access-to-markets): Condiciones de acceso al mercado UE
+8. **ITC** (intracen.org): Centro de Comercio Internacional - análisis de competitividad
+
+### ESTRUCTURA DEL ESTUDIO:
+1. **Resumen Ejecutivo**: 2-3 párrafos con hallazgos clave y recomendación principal
+2. **Análisis PESTEL Detallado**: Cada factor con datos concretos y fuentes
+3. **Tamaño de Mercado**: Con valor estimado, CAGR y fuente del dato
+4. **Análisis de Competencia**: Principales players con cuotas de mercado
+5. **Tendencias**: Mínimo 4 tendencias actuales del sector
+6. **Oportunidades**: Mínimo 4 oportunidades específicas para esta ruta
+7. **Amenazas**: Mínimo 3 riesgos con su probabilidad e impacto
+8. **Recomendaciones Estratégicas**: Mínimo 5 recomendaciones accionables
+
+{trade_context}
+
+### FORMATO DE RESPUESTA JSON:
 {{
-    "product_name": "Short product name",
-    "executive_summary": "Executive summary of 2-3 paragraphs about market potential",
+    "product_name": "Nombre corto del producto",
+    "executive_summary": "Resumen ejecutivo profesional de 2-3 párrafos. Incluye: potencial del mercado, volumen comercial estimado (referencia a fuente), principales barreras de entrada, y recomendación principal. Cita las fuentes consultadas.",
     "pestel": {{
-        "political": "Analysis of political factors affecting import/export",
-        "economic": "Economic analysis: tariffs, exchange rate, demand, purchasing power",
-        "social": "Social factors: consumption trends, target market preferences",
-        "technological": "Technological aspects of the sector and its evolution",
-        "environmental": "Environmental regulations, sustainability, carbon footprint",
-        "legal": "Legal framework, required certifications, import regulations"
+        "political": "Análisis político: estabilidad, relaciones bilaterales, acuerdos comerciales vigentes entre ambos países, aranceles aplicables. Citar fuente: WTO, Access2Markets.",
+        "economic": "Análisis económico: PIB destino, poder adquisitivo, tipo de cambio, inflación, costes logísticos. Citar fuente: World Bank, IMF.",
+        "social": "Factores sociales: demografía, hábitos de consumo, tendencias culturales, penetración de e-commerce. Citar fuente: Eurostat, censos nacionales.",
+        "technological": "Aspectos tecnológicos: digitalización del sector, tecnologías disruptivas, adopción de nuevas tecnologías. Citar fuente: informes sectoriales.",
+        "environmental": "Regulaciones ambientales: huella de carbono, economía circular, certificaciones verdes exigidas, ESG. Citar fuente: regulaciones locales.",
+        "legal": "Marco legal: certificaciones requeridas, homologaciones, registros sanitarios, normas técnicas obligatorias. Citar fuente: organismos reguladores del destino."
     }},
     "market_size": {{
-        "description": "Description of market size and structure",
-        "value": "€X million/billion (estimate)",
-        "growth_rate": "X% CAGR"
+        "description": "Descripción detallada del tamaño del mercado con datos de importaciones/exportaciones del producto entre ambos países según UN Comtrade o Trade Map.",
+        "value": "€X millones/billones (Fuente: [nombre fuente], año)",
+        "growth_rate": "X% CAGR (periodo y fuente)"
     }},
     "competitors": [
-        {{"name": "Competitor 1", "description": "Brief description", "market_share": "X%"}},
-        {{"name": "Competitor 2", "description": "Brief description", "market_share": "X%"}}
+        {{"name": "Competidor 1", "description": "País de origen y ventaja competitiva", "market_share": "X% (estimado según flujos comerciales)"}},
+        {{"name": "Competidor 2", "description": "País de origen y ventaja competitiva", "market_share": "X%"}},
+        {{"name": "Competidor 3", "description": "País de origen y ventaja competitiva", "market_share": "X%"}}
     ],
     "trends": [
-        "Market trend 1",
-        "Market trend 2"
+        "Tendencia 1 con dato de soporte",
+        "Tendencia 2 con dato de soporte",
+        "Tendencia 3 con dato de soporte",
+        "Tendencia 4 con dato de soporte"
     ],
     "opportunities": [
-        "Opportunity 1",
-        "Opportunity 2"
+        "Oportunidad 1 específica para esta ruta comercial",
+        "Oportunidad 2",
+        "Oportunidad 3",
+        "Oportunidad 4"
     ],
     "threats": [
-        "Threat 1",
-        "Threat 2"
+        "Amenaza 1 (probabilidad: alta/media/baja, impacto: alto/medio/bajo)",
+        "Amenaza 2",
+        "Amenaza 3"
     ],
     "recommendations": [
-        "Strategic recommendation 1",
-        "Strategic recommendation 2"
+        "Recomendación estratégica 1 con acción concreta",
+        "Recomendación estratégica 2",
+        "Recomendación estratégica 3",
+        "Recomendación estratégica 4",
+        "Recomendación estratégica 5"
     ]
 }}
 
-Remember: ALL content must be written in {lang_name.upper()} language."""
+IMPORTANTE: 
+- Usa datos reales y actualizados basados en tu conocimiento de las fuentes oficiales.
+- Siempre cita la fuente de los datos principales.
+- Sé específico para el par de países indicados, no generalices.
+- Todo el contenido en {lang_name.upper()}."""
 
-        user_prompt = f"""Generate a professional market study for the following product and trade route.
-Respond in {lang_name} language.
+        user_prompt = f"""Genera un estudio de mercado PROFESIONAL para la siguiente operación comercial internacional.
 
-PRODUCT: {request.product_description}
-{f"TARIC CODE: {request.taric_code}" if request.taric_code else ""}
-ORIGIN COUNTRY: {request.origin_country}
-DESTINATION COUNTRY: {request.destination_country}
+📦 PRODUCTO: {request.product_description}
+{f"📋 CÓDIGO TARIC: {request.taric_code}" if request.taric_code else ""}
+🌍 PAÍS ORIGEN (Exportador): {request.origin_country}
+🎯 PAÍS DESTINO (Importador): {request.destination_country}
 
-Please provide a complete analysis including PESTEL, market size, competition, trends, opportunities, threats and strategic recommendations.
-All content must be in {lang_name} language."""
+Realiza un análisis exhaustivo consultando mentalmente las fuentes oficiales de comercio internacional.
+Incluye:
+- Volumen comercial bilateral real del producto (según UN Comtrade/Trade Map)
+- Aranceles aplicables y preferencias según acuerdos vigentes
+- Principales competidores (otros países exportadores al destino)
+- Requisitos de entrada específicos del país destino
+- Recomendaciones estratégicas accionables
+
+El estudio debe ser de calidad consultoría profesional. Idioma: {lang_name}."""
 
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
