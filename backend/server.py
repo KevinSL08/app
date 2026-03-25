@@ -934,17 +934,24 @@ async def get_search_history(current_user: dict = Depends(get_current_user)):
         {"_id": 0, "id": 1, "product_description": 1, "taric_code": 1, "client_reference": 1, "created_at": 1, "user_id": 1}
     ).sort("created_at", -1).limit(100).to_list(100)
     
-    # Get user names for each search
+    # Batch fetch all user names in ONE query (optimized - no N+1 problem)
+    user_ids = list(set(s.get("user_id") for s in searches if s.get("user_id")))
+    users_dict = {}
+    if user_ids:
+        users_cursor = db.users.find({"id": {"$in": user_ids}}, {"_id": 0, "id": 1, "name": 1})
+        users_list = await users_cursor.to_list(None)
+        users_dict = {u["id"]: u.get("name") for u in users_list}
+    
+    # Build result with cached user names
     result = []
     for s in searches:
-        user = await db.users.find_one({"id": s.get("user_id")}, {"_id": 0, "name": 1})
         result.append(SearchHistoryItem(
             id=s["id"],
             product_description=s["product_description"],
             taric_code=s["taric_code"],
             client_reference=s.get("client_reference"),
             created_at=s["created_at"],
-            user_name=user.get("name") if user else None
+            user_name=users_dict.get(s.get("user_id"))
         ))
     
     return result
