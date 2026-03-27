@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 # Configuración de Resend
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'notifications@taricai.com')
+APP_URL = os.environ.get('APP_URL', os.environ.get('REACT_APP_BACKEND_URL', 'https://taricai.com'))
 
 if RESEND_AVAILABLE and RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
@@ -101,7 +102,7 @@ def generate_tariff_alert_email(alert: TariffAlert, user_name: str) -> str:
         </div>
         
         <div style="text-align: center; margin: 20px 0;">
-            <a href="https://arancelai.preview.emergentagent.com" 
+            <a href="{APP_URL}" 
                style="display: inline-block; background: linear-gradient(to right, #00d4ff, #0066ff); color: white; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-weight: bold;">
                 Ver Detalles en TaricAI
             </a>
