@@ -3253,6 +3253,134 @@ async def get_route_ports(origin_country: str, destination_country: str, cargo_t
         }
     }
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# ENDPOINT DE APRENDIZAJE - GUARDAR CLASIFICACIONES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class ClassificationLearningData(BaseModel):
+    producto: str
+    origen_pais: str
+    origen_subpartida: str
+    destino_pais: str
+    destino_subpartida: str
+    arancel_mfn: Optional[str] = None
+    arancel_preferencial: Optional[str] = None
+    tlc_aplicado: Optional[str] = None
+    impuestos_totales: Optional[str] = None
+    requisitos_clave: List[str] = []
+    documentos_obligatorios: List[str] = []
+    alerta_riesgo: str = "verde"  # verde, amarillo, rojo
+    alerta_multa: Optional[str] = None
+    observaciones: Optional[str] = None
+
+@api_router.post("/classifications/learn")
+async def save_classification_learning(
+    data: ClassificationLearningData,
+    user: dict = Depends(get_current_user)
+):
+    """Guarda una clasificación para aprendizaje continuo del sistema"""
+    
+    classification_doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "organization_id": user.get("organization_id"),
+        "producto": data.producto,
+        "origen": {
+            "pais": data.origen_pais,
+            "subpartida": data.origen_subpartida
+        },
+        "destino": {
+            "pais": data.destino_pais,
+            "subpartida": data.destino_subpartida,
+            "arancel_mfn": data.arancel_mfn,
+            "arancel_preferencial": data.arancel_preferencial,
+            "tlc_aplicado": data.tlc_aplicado
+        },
+        "impuestos_totales": data.impuestos_totales,
+        "requisitos_clave": data.requisitos_clave,
+        "documentos_obligatorios": data.documentos_obligatorios,
+        "alerta_riesgo": data.alerta_riesgo,
+        "alerta_multa": data.alerta_multa,
+        "observaciones": data.observaciones,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.classification_learning.insert_one(classification_doc)
+    
+    return {
+        "message": "Clasificación guardada para aprendizaje",
+        "id": classification_doc["id"],
+        "alerta_riesgo": data.alerta_riesgo
+    }
+
+@api_router.get("/classifications/patterns")
+async def get_classification_patterns(
+    origen: Optional[str] = None,
+    destino: Optional[str] = None,
+    user: dict = Depends(get_current_user)
+):
+    """Obtiene patrones de clasificaciones anteriores para sugerir alertas"""
+    
+    query = {"organization_id": user.get("organization_id")}
+    
+    if origen:
+        query["origen.pais"] = origen.upper()
+    if destino:
+        query["destino.pais"] = destino.upper()
+    
+    # Obtener clasificaciones previas
+    classifications = await db.classification_learning.find(
+        query,
+        {"_id": 0}
+    ).sort("created_at", -1).limit(50).to_list(50)
+    
+    # Analizar patrones de riesgo
+    risk_counts = {"verde": 0, "amarillo": 0, "rojo": 0}
+    common_issues = {}
+    
+    for c in classifications:
+        risk_counts[c.get("alerta_riesgo", "verde")] += 1
+        if c.get("alerta_multa"):
+            issue = c["alerta_multa"]
+            common_issues[issue] = common_issues.get(issue, 0) + 1
+    
+    return {
+        "total_classifications": len(classifications),
+        "risk_distribution": risk_counts,
+        "common_issues": sorted(common_issues.items(), key=lambda x: -x[1])[:5],
+        "recent_classifications": classifications[:10]
+    }
+
+@api_router.get("/classifications/alerts/{ruta}")
+async def get_route_alerts(
+    ruta: str,  # formato: "CO-ES" 
+    user: dict = Depends(get_current_user)
+):
+    """Obtiene alertas históricas para una ruta específica"""
+    
+    parts = ruta.upper().split("-")
+    if len(parts) != 2:
+        raise HTTPException(status_code=400, detail="Formato de ruta inválido. Usar: ORIGEN-DESTINO (ej: CO-ES)")
+    
+    origen, destino = parts
+    
+    # Buscar clasificaciones con alertas para esta ruta
+    alerts = await db.classification_learning.find(
+        {
+            "origen.pais": origen,
+            "destino.pais": destino,
+            "alerta_riesgo": {"$in": ["amarillo", "rojo"]}
+        },
+        {"_id": 0, "alerta_multa": 1, "requisitos_clave": 1, "alerta_riesgo": 1, "producto": 1}
+    ).limit(20).to_list(20)
+    
+    return {
+        "ruta": f"{origen} → {destino}",
+        "total_alerts": len(alerts),
+        "alerts": alerts,
+        "recommendation": "Verifica estos requisitos antes de embarcar" if alerts else "Sin alertas históricas para esta ruta"
+    }
+
 # Include router and middleware
 app.include_router(api_router)
 
