@@ -33,7 +33,8 @@ import {
   UserPlus,
   Download,
   Plug,
-  Map
+  Map,
+  Ship
 } from "lucide-react";
 import {
   Select,
@@ -72,6 +73,7 @@ import ERPIntegration from "../components/ERPIntegration";
 import UsageStatsPanel from "../components/UsageStatsPanel";
 import BatchClassificationPanel from "../components/BatchClassificationPanel";
 import AlertSubscriptionPanel from "../components/AlertSubscriptionPanel";
+import PortCostsPanel from "../components/PortCostsPanel";
 import { exportToExcel, exportHistoryToExcel } from "../utils/excelExport";
 import { COUNTRIES, getCountriesByRegion, REGION_ORDER, getCountryByCode } from "../config/countries";
 import { findApplicableAgreements } from "../config/tradeAgreements";
@@ -575,6 +577,18 @@ export default function DashboardPage() {
             >
               <Bell className="w-4 h-4" />
               Alertas
+            </button>
+            <button
+              onClick={() => setActiveTab("ports")}
+              className={`px-6 py-3 rounded-lg font-semibold text-sm uppercase tracking-wider transition-all flex items-center gap-2 ${
+                activeTab === "ports" 
+                  ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/50" 
+                  : "bg-[#0d1424] text-gray-400 border border-[rgba(0,212,255,0.1)] hover:border-cyan-500/30"
+              }`}
+              data-testid="tab-ports"
+            >
+              <Ship className="w-4 h-4" />
+              Puertos
             </button>
           </div>
 
@@ -1222,6 +1236,20 @@ export default function DashboardPage() {
               animate={{ opacity: 1, y: 0 }}
             >
               <AlertSubscriptionPanel token={token} />
+            </motion.div>
+          )}
+
+          {/* Ports Tab - Port Costs Analysis */}
+          {activeTab === "ports" && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <PortCostsPanel 
+                token={token} 
+                originCountry={originCountry}
+                destinationCountry={destinationCountry}
+              />
             </motion.div>
           )}
         </div>
